@@ -10,6 +10,7 @@ import (
 type BankAccount struct {
 	ID          uuid.UUID
 	UserID      uuid.UUID
+	Name        string
 	AccountType string
 	BankName    string
 	Balance     decimal.Decimal
@@ -17,10 +18,11 @@ type BankAccount struct {
 	CreatedAt   time.Time
 }
 
-func NewBankAccount( userID uuid.UUID, accountType, bankName string, balance decimal.Decimal, isActive bool) *BankAccount {
+func NewBankAccount(userID uuid.UUID, accountType, name, bankName string, balance decimal.Decimal, isActive bool) *BankAccount {
 	return &BankAccount{
 		ID:          uuid.New(),
 		UserID:      userID,
+		Name:        name,
 		AccountType: accountType,
 		BankName:    bankName,
 		Balance:     balance,
