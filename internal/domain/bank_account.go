@@ -31,7 +31,7 @@ type BankAccount struct {
 }
 
 func NewBankAccount(userID uuid.UUID, accountType AccountType, name, bankName string, balance decimal.Decimal) (*BankAccount, error) {
-	if name == "" {
+	if bankName == "" {
 		return nil, ErrEmptyBankName
 	}
 
@@ -56,5 +56,6 @@ func NewBankAccount(userID uuid.UUID, accountType AccountType, name, bankName st
 		Balance:     balance,
 		IsActive:    true,
 		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}, nil
 }

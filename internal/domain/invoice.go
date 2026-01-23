@@ -10,7 +10,8 @@ import (
 type InvoiceStatus string
 
 const (
-	InvoiceStatusPaid InvoiceStatus = "paid"
+	InvoiceStatusOpen    InvoiceStatus = "open"
+	InvoiceStatusPaid    InvoiceStatus = "paid"
 	InvoiceStatusExpired InvoiceStatus = "expired"
 )
 
@@ -29,10 +30,10 @@ type Invoice struct {
 	DueDate       time.Time
 	TotalAmount   decimal.Decimal
 	Status        InvoiceStatus
-	PaidAt        time.Time
+	PaidAt        *time.Time
 }
 
-func NewInvoice(cardID uuid.UUID, referenceDate, dueDate, paidAt time.Time, totalAmount decimal.Decimal, status InvoiceStatus) (*Invoice, error) {
+func NewInvoice(cardID uuid.UUID, referenceDate, dueDate time.Time, paidAt *time.Time, totalAmount decimal.Decimal, status InvoiceStatus) (*Invoice, error) {
 	if status.IsPaid() {
 		return nil, ErrInvoiceAlreadyPaid
 	}
@@ -41,7 +42,7 @@ func NewInvoice(cardID uuid.UUID, referenceDate, dueDate, paidAt time.Time, tota
 		return nil, ErrInvoiceAlreadyClosed
 	}
 
-	if totalAmount.LessThanOrEqual(decimal.Zero) {
+	if totalAmount.LessThan(decimal.Zero) {
 		return nil, ErrInvalidInvoice
 	}
 

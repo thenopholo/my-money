@@ -10,9 +10,9 @@ import (
 type Recurrence string
 
 const (
-	Once Recurrence = "once"
+	Once    Recurrence = "once"
 	Monthly Recurrence = "monthly"
-	Yearly Recurrence = "Yearly"
+	Yearly  Recurrence = "yearly"
 )
 
 func (r Recurrence) IsValid() bool {
@@ -34,7 +34,7 @@ type PlannedIncome struct {
 	CreatedAt   time.Time
 }
 
-func NewPlannedIncome(userID, AccountID, categoryID uuid.UUID, amount decimal.Decimal, dueDay int, startDate, endDate *time.Time, description string, frequency Recurrence, isActive bool) (*PlannedIncome, error) {
+func NewPlannedIncome(userID, accountID, categoryID uuid.UUID, amount decimal.Decimal, dueDay int, startDate, endDate *time.Time, description string, frequency Recurrence, isActive bool) (*PlannedIncome, error) {
 	if amount.LessThanOrEqual(decimal.Zero) {
 		return nil, ErrInvalidAmount
 	}
@@ -43,13 +43,13 @@ func NewPlannedIncome(userID, AccountID, categoryID uuid.UUID, amount decimal.De
 		return nil, ErrInvalidFrequency
 	}
 
-	if dueDay < 1 || dueDay > 32 {
+	if dueDay < 1 || dueDay > 31 {
 		return nil, ErrInvalidDueDay
 	}
 
-	if endDate.After(*startDate) {
-		return nil, ErrEndDateBeforeStart
-	}
+	if endDate != nil && startDate != nil && endDate.Before(*startDate) {
+    return nil, ErrEndDateBeforeStart
+}
 
 	if description == "" {
 		return nil, ErrEmptyDescription
@@ -57,7 +57,7 @@ func NewPlannedIncome(userID, AccountID, categoryID uuid.UUID, amount decimal.De
 
 	return &PlannedIncome{
 		ID:          uuid.New(),
-		AccountID:   AccountID,
+		AccountID:   accountID,
 		UserID:      userID,
 		CategoryID:  categoryID,
 		Amount:      amount,

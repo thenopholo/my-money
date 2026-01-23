@@ -31,13 +31,13 @@ func NewPlannedExpense(userID, AccountID, categoryID uuid.UUID, amount decimal.D
 		return nil, ErrInvalidFrequency
 	}
 
-	if dueDay < 1 || dueDay > 32 {
+	if dueDay < 1 || dueDay > 31 {
 		return nil, ErrInvalidDueDay
 	}
 
-	if endDate.After(*startDate) {
-		return nil, ErrEndDateBeforeStart
-	}
+	if endDate != nil && startDate != nil && endDate.Before(*startDate) {
+    return nil, ErrEndDateBeforeStart
+}
 
 	if description == "" {
 		return nil, ErrEmptyDescription

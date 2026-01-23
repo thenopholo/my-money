@@ -46,7 +46,7 @@ func NewTransaction(accountID, categoryID uuid.UUID, invoiceID, plannedIncome, p
 	}
 
 	if description == "" {
-		description = "Transação"
+		description = "Transacao"
 	}
 
 	return &Transaction{
