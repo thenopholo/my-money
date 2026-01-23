@@ -7,7 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type PlannedOutcome struct {
+type PlannedExpense struct {
 	ID         uuid.UUID
 	AccountID  uuid.UUID
 	UserID     uuid.UUID
@@ -21,8 +21,8 @@ type PlannedOutcome struct {
 	CreatedAt  time.Time
 }
 
-func NewPlannedOutcome(userID, AccountID, categoryID uuid.UUID, amount decimal.Decimal, dueDay int, startDate, endDate *time.Time, frequency string, isActive bool) *PlannedOutcome {
-	return &PlannedOutcome{
+func NewPlannedExpense(userID, AccountID, categoryID uuid.UUID, amount decimal.Decimal, dueDay int, startDate, endDate *time.Time, frequency string, isActive bool) *PlannedExpense {
+	return &PlannedExpense{
 		ID:         uuid.New(),
 		AccountID:  AccountID,
 		UserID:     userID,
