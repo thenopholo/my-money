@@ -7,17 +7,44 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type InvoiceStatus string
+
+const (
+	InvoiceStatusPaid InvoiceStatus = "paid"
+	InvoiceStatusExpired InvoiceStatus = "expired"
+)
+
+func (s InvoiceStatus) IsPaid() bool {
+	return s == InvoiceStatusPaid
+}
+
+func (s InvoiceStatus) IsExpired() bool {
+	return s == InvoiceStatusExpired
+}
+
 type Invoice struct {
 	ID            uuid.UUID
 	CardID        uuid.UUID
 	ReferenceDate time.Time
 	DueDate       time.Time
 	TotalAmount   decimal.Decimal
-	Status        string
+	Status        InvoiceStatus
 	PaidAt        time.Time
 }
 
-func NewInvoice(cardID uuid.UUID, referenceDate, dueDate, paidAt time.Time, totalAmount decimal.Decimal, status string) *Invoice {
+func NewInvoice(cardID uuid.UUID, referenceDate, dueDate, paidAt time.Time, totalAmount decimal.Decimal, status InvoiceStatus) (*Invoice, error) {
+	if status.IsPaid() {
+		return nil, ErrInvoiceAlreadyPaid
+	}
+
+	if status.IsExpired() {
+		return nil, ErrInvoiceAlreadyClosed
+	}
+
+	if totalAmount.LessThanOrEqual(decimal.Zero) {
+		return nil, ErrInvalidInvoice
+	}
+
 	return &Invoice{
 		ID:            uuid.New(),
 		CardID:        cardID,
@@ -26,5 +53,5 @@ func NewInvoice(cardID uuid.UUID, referenceDate, dueDate, paidAt time.Time, tota
 		TotalAmount:   totalAmount,
 		Status:        status,
 		PaidAt:        paidAt,
-	}
+	}, nil
 }

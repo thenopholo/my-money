@@ -7,19 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type Recurrence string
-
-const (
-	Once Recurrence = "once"
-	Monthly Recurrence = "monthly"
-	Yearly Recurrence = "Yearly"
-)
-
-func (r Recurrence) IsValid() bool {
-	return r == Once || r == Monthly || r == Yearly
-}
-
-type PlannedIncome struct {
+type PlannedExpense struct {
 	ID          uuid.UUID
 	AccountID   uuid.UUID
 	UserID      uuid.UUID
@@ -34,7 +22,7 @@ type PlannedIncome struct {
 	CreatedAt   time.Time
 }
 
-func NewPlannedIncome(userID, AccountID, categoryID uuid.UUID, amount decimal.Decimal, dueDay int, startDate, endDate *time.Time, description string, frequency Recurrence, isActive bool) (*PlannedIncome, error) {
+func NewPlannedExpense(userID, AccountID, categoryID uuid.UUID, amount decimal.Decimal, dueDay int, startDate, endDate *time.Time, description string, frequency Recurrence, isActive bool) (*PlannedExpense, error) {
 	if amount.LessThanOrEqual(decimal.Zero) {
 		return nil, ErrInvalidAmount
 	}
@@ -55,7 +43,7 @@ func NewPlannedIncome(userID, AccountID, categoryID uuid.UUID, amount decimal.De
 		return nil, ErrEmptyDescription
 	}
 
-	return &PlannedIncome{
+	return &PlannedExpense{
 		ID:          uuid.New(),
 		AccountID:   AccountID,
 		UserID:      userID,
@@ -64,8 +52,8 @@ func NewPlannedIncome(userID, AccountID, categoryID uuid.UUID, amount decimal.De
 		DueDay:      dueDay,
 		StartDate:   startDate,
 		EndDate:     endDate,
-		Description: description,
 		Frequency:   frequency,
+		Description: description,
 		IsActive:    isActive,
 		CreatedAt:   time.Now(),
 	}, nil

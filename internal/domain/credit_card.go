@@ -18,7 +18,19 @@ type CreditCard struct {
 	CreatedAt   time.Time
 }
 
-func NewCreditCard(userID uuid.UUID, name string, creditLimit decimal.Decimal, closeDay, dueDay int, isActive bool) *CreditCard {
+func NewCreditCard(userID uuid.UUID, name string, creditLimit decimal.Decimal, closeDay, dueDay int, isActive bool) (*CreditCard, error) {
+	if name == "" {
+		return nil, ErrEmptyCardName
+	}
+
+	if closeDay < 1 || closeDay > 29 {
+		return nil, ErrInvalidCloseDay
+	}
+
+	if creditLimit.LessThanOrEqual(decimal.Zero) {
+		return nil, ErrInvalidLimit
+	}
+
 	return &CreditCard{
 		ID:          uuid.New(),
 		UserID:      userID,
@@ -28,5 +40,5 @@ func NewCreditCard(userID uuid.UUID, name string, creditLimit decimal.Decimal, c
 		DueDay:      dueDay,
 		IsActive:    isActive,
 		CreatedAt:   time.Now(),
-	}
+	}, nil
 }

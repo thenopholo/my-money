@@ -38,6 +38,7 @@ var (
 	// Erros de Invoice
 	ErrInvoiceAlreadyPaid   = errors.New("invoice is already paid")
 	ErrInvoiceAlreadyClosed = errors.New("invoice is already closed")
+	ErrInvalidInvoice   = errors.New("invoice must have an amount bigger than zero")
 
 	// Erros de CreditCardTransaction
 	ErrInvalidInstallments = errors.New("installments must be between 1 and 48")
