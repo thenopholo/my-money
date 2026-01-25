@@ -9,6 +9,7 @@ var (
 	ErrPasswordTooShort = errors.New("password must be at least 8 characters")
 	ErrPasswordTooWeak  = errors.New("password is too weak")
 	ErrEmailInUse       = errors.New("email already in use")
+	ErrUserNotFound     = errors.New("user notfound in DB")
 
 	// Erros de BankAccount
 	ErrEmptyBankName      = errors.New("bank name cannot be empty")
@@ -38,7 +39,7 @@ var (
 	// Erros de Invoice
 	ErrInvoiceAlreadyPaid   = errors.New("invoice is already paid")
 	ErrInvoiceAlreadyClosed = errors.New("invoice is already closed")
-	ErrInvalidInvoice   = errors.New("invoice must have an amount bigger than zero")
+	ErrInvalidInvoice       = errors.New("invoice must have an amount bigger than zero")
 
 	// Erros de CreditCardTransaction
 	ErrInvalidInstallments = errors.New("installments must be between 1 and 48")
