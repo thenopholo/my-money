@@ -15,3 +15,10 @@ type UserRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
+type CreditCardRepository interface {
+	CreateCreditCard(ctx context.Context, cc *domain.CreditCard) error
+	GetCreditCardByID(ctx context.Context, id uuid.UUID) (*domain.CreditCard, error)
+	GetCreditCardUserByID(ctx context.Context, id uuid.UUID) (*domain.CreditCard, error)
+	UpadateCreditCard(ctx context.Context, cc *domain.CreditCard) error
+	DeleteCredirCard(ctx context.Context, id uuid.UUID) error
+}

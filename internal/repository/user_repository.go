@@ -14,8 +14,8 @@ type userRepository struct {
 	queries *postgres.Queries
 }
 
-func NewUserRepository(queries *postgres.Queries) *userRepository {
-	return &userRepository{queries: queries}
+func NewUserRepository(q *postgres.Queries) *userRepository {
+	return &userRepository{queries: q}
 }
 
 func (r *userRepository) Create(ctx context.Context, u *domain.User) error {
