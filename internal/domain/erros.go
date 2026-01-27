@@ -9,7 +9,7 @@ var (
 	ErrPasswordTooShort = errors.New("password must be at least 8 characters")
 	ErrPasswordTooWeak  = errors.New("password is too weak")
 	ErrEmailInUse       = errors.New("email already in use")
-	ErrUserNotFound     = errors.New("user notfound in DB")
+	ErrUserNotFound     = errors.New("user not found in DB")
 
 	// Erros de BankAccount
 	ErrEmptyBankName      = errors.New("bank name cannot be empty")
@@ -24,7 +24,7 @@ var (
 	ErrEmptyCardName   = errors.New("card name cannot be empty")
 	ErrInvalidCloseDay = errors.New("close day must be between 1 and 28")
 	ErrInvalidLimit    = errors.New("credit limit must be positive")
-	ErrCreditCardNotFound    = errors.New("credit limit not found")
+	ErrCreditCardNotFound    = errors.New("credit card not found")
 
 	// Erros de Transaction
 	ErrInvalidTransactionType = errors.New("transaction type must be 'income' or 'expense'")

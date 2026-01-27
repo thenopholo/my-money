@@ -6,8 +6,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/shopspring/decimal"
 	"github.com/thenopholo/my-money/internal/domain"
 	"github.com/thenopholo/my-money/internal/repository/postgres"
 )
@@ -20,21 +18,6 @@ func NewCreditCardRepository(q *postgres.Queries) *creditCardRepository {
 	return &creditCardRepository{
 		queries: q,
 	}
-}
-
-func decimalToPgNumeric(d decimal.Decimal) pgtype.Numeric {
-	var n pgtype.Numeric
-	_ = n.Scan(d.String())
-	return n
-}
-
-func pgNumericToDecimal(n pgtype.Numeric) decimal.Decimal {
-	if !n.Valid {
-		return decimal.Zero
-	}
-
-	d := decimal.NewFromBigInt(n.Int, n.Exp)
-	return d
 }
 
 func (r *creditCardRepository) CreateCreditCard(ctx context.Context, cc *domain.CreditCard) error {
@@ -78,44 +61,46 @@ func (r *creditCardRepository) GetCreditCardByID(ctx context.Context, id uuid.UU
 	}, nil
 }
 
-func (r *creditCardRepository) GetCreditCardByUserID(ctx context.Context, id uuid.UUID) (*domain.CreditCard, error) {
-	cc, err := r.queries.GetCreditCardByID(ctx, id)
+func (r *creditCardRepository) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.CreditCard, error) {
+	dbCards, err := r.queries.GetCreditCardByUserID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, domain.ErrCreditCardNotFound
-		}
-		return nil, err
+			return nil, err
 	}
 
-	return &domain.CreditCard{
-		ID:          cc.ID,
-		UserID:      cc.UserID,
-		Name:        cc.Name,
-		CreditLimit: pgNumericToDecimal(cc.CreditLimit),
-		CloseDay:    int(cc.CloseDay),
-		DueDay:      int(cc.DueDay),
-		IsActive:    true,
-		CreatedAt:   cc.CreatedAt.Time,
-	}, nil
+	cards := make([]*domain.CreditCard, len(dbCards))
+	for i, cc := range dbCards {
+			cards[i] = &domain.CreditCard{
+					ID:          cc.ID,
+					UserID:      cc.UserID,
+					Name:        cc.Name,
+					CreditLimit: pgNumericToDecimal(cc.CreditLimit),
+					CloseDay:    int(cc.CloseDay),
+					DueDay:      int(cc.DueDay),
+					IsActive:    cc.IsActive,
+					CreatedAt:   cc.CreatedAt.Time,
+			}
+	}
+
+	return cards, nil
 }
 
-func (r *creditCardRepository) UpadateCreditCard(ctx context.Context, cc *domain.CreditCard) error {
+func (r *creditCardRepository) Update(ctx context.Context, cc *domain.CreditCard) error {
 	dbCC, err := r.queries.UpdateCreditCard(ctx, postgres.UpdateCreditCardParams{
-		ID:          cc.ID,
-		Name:        cc.Name,
-		CreditLimit: decimalToPgNumeric(cc.CreditLimit),
-		CloseDay:    int32(cc.CloseDay),
-		DueDay:      int32(cc.DueDay),
-		IsActive:    true,
+			ID:          cc.ID,
+			Name:        cc.Name,
+			CreditLimit: decimalToPgNumeric(cc.CreditLimit),
+			CloseDay:    int32(cc.CloseDay),
+			DueDay:      int32(cc.DueDay),
+			IsActive:    cc.IsActive,
 	})
-
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.ErrCreditCardNotFound
-		}
+			if errors.Is(err, pgx.ErrNoRows) {
+					return domain.ErrCreditCardNotFound
+			}
+			return err
 	}
 
-	cc.UpadatedAt = dbCC.UpdatedAt.Time
+	cc.UpdatedAt = dbCC.UpdatedAt.Time
 
 	return nil
 }
