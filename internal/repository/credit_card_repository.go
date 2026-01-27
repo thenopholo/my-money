@@ -20,7 +20,7 @@ func NewCreditCardRepository(q *postgres.Queries) *creditCardRepository {
 	}
 }
 
-func (r *creditCardRepository) CreateCreditCard(ctx context.Context, cc *domain.CreditCard) error {
+func (r *creditCardRepository) Create(ctx context.Context, cc *domain.CreditCard) error {
 	dbCC, err := r.queries.CreateCreditCard(ctx, postgres.CreateCreditCardParams{
 		UserID:      cc.UserID,
 		Name:        cc.Name,
@@ -40,7 +40,7 @@ func (r *creditCardRepository) CreateCreditCard(ctx context.Context, cc *domain.
 	return nil
 }
 
-func (r *creditCardRepository) GetCreditCardByID(ctx context.Context, id uuid.UUID) (*domain.CreditCard, error) {
+func (r *creditCardRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.CreditCard, error) {
 	cc, err := r.queries.GetCreditCardByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -105,7 +105,7 @@ func (r *creditCardRepository) Update(ctx context.Context, cc *domain.CreditCard
 	return nil
 }
 
-func (r *creditCardRepository) DeleteCreditCard(ctx context.Context, id uuid.UUID) error {
+func (r *creditCardRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	err := r.queries.DeleteCreditCard(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
