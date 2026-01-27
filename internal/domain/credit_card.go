@@ -16,6 +16,7 @@ type CreditCard struct {
 	DueDay      int
 	IsActive    bool
 	CreatedAt   time.Time
+	UpadatedAt  time.Time
 }
 
 func NewCreditCard(userID uuid.UUID, name string, creditLimit decimal.Decimal, closeDay, dueDay int) (*CreditCard, error) {
@@ -44,5 +45,6 @@ func NewCreditCard(userID uuid.UUID, name string, creditLimit decimal.Decimal, c
 		DueDay:      dueDay,
 		IsActive:    true,
 		CreatedAt:   time.Now(),
+		UpadatedAt:  time.Now(),
 	}, nil
 }

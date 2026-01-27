@@ -20,5 +20,5 @@ type CreditCardRepository interface {
 	GetCreditCardByID(ctx context.Context, id uuid.UUID) (*domain.CreditCard, error)
 	GetCreditCardUserByID(ctx context.Context, id uuid.UUID) (*domain.CreditCard, error)
 	UpadateCreditCard(ctx context.Context, cc *domain.CreditCard) error
-	DeleteCredirCard(ctx context.Context, id uuid.UUID) error
+	DeleteCreditCard(ctx context.Context, id uuid.UUID) error
 }

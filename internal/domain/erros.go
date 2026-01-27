@@ -24,6 +24,7 @@ var (
 	ErrEmptyCardName   = errors.New("card name cannot be empty")
 	ErrInvalidCloseDay = errors.New("close day must be between 1 and 28")
 	ErrInvalidLimit    = errors.New("credit limit must be positive")
+	ErrCreditCardNotFound    = errors.New("credit limit not found")
 
 	// Erros de Transaction
 	ErrInvalidTransactionType = errors.New("transaction type must be 'income' or 'expense'")
