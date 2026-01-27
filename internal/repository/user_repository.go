@@ -42,6 +42,9 @@ func (r *userRepository) Update(ctx context.Context, u *domain.User) error {
 		PasswordHash: u.PasswordHash,
 	})
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrUserNotFound
+		}
 		return err
 	}
 
@@ -51,7 +54,14 @@ func (r *userRepository) Update(ctx context.Context, u *domain.User) error {
 }
 
 func (r *userRepository) Delete(ctx context.Context, id uuid.UUID) error {
-  return r.queries.DeleteUser(ctx, id)
+  err := r.queries.DeleteUser(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrUserNotFound
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
