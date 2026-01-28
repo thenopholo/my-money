@@ -22,3 +22,11 @@ type CreditCardRepository interface {
 	Update(ctx context.Context, cc *domain.CreditCard) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
+
+type CategoryRepository interface {
+	Create(ctx context.Context, c *domain.Category) error
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Category, error)
+	GetByUserID(ctx context.Context, id uuid.UUID) (*domain.Category, error)
+	Update(ctx context.Context, c *domain.Category) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
