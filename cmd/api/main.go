@@ -1,37 +1,87 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
-	"os"
-	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thenopholo/my-money/internal/auth"
+	"github.com/thenopholo/my-money/internal/config"
 	"github.com/thenopholo/my-money/internal/handler"
 	handlermw "github.com/thenopholo/my-money/internal/handler/middleware"
+	"github.com/thenopholo/my-money/internal/repository"
+	"github.com/thenopholo/my-money/internal/repository/postgres"
+	"github.com/thenopholo/my-money/internal/service"
 )
 
 func main() {
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		jwtSecret = "dev-secret-change-me"
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
 	}
-	jwtManager := auth.NewJWTManager(jwtSecret, 24*time.Hour)
 
-	// TODO: conectar banco, criar repositories/services e instanciar handlers reais.
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal("failed to connect to database:", err)
+	}
+	defer pool.Close()
+
+	if err := pool.Ping(ctx); err != nil {
+		log.Fatal("failed to ping database:", err)
+	}
+	log.Println("Connected to database")
+
+	queries := postgres.New(pool)
+	jwtManager := auth.NewJWTManager(cfg.JWTSecret, cfg.JWTDuration)
+
+	userRepo := repository.NewUserRepository(queries)
+	bankAccountRepo := repository.NewBankAccountRepository(queries)
+	categoryRepo := repository.NewCategoryRepository(queries)
+	creditCardRepo := repository.NewCreditCardRepository(queries)
+	invoiceRepo := repository.NewInvoiceRepository(queries)
+	transactionRepo := repository.NewTransactionRepository(queries)
+	ccTxRepo := repository.NewCreditCardTransactionRepository(queries)
+	plannedIncomeRepo := repository.NewPlannedIncomeRepository(queries)
+	plannedExpenseRepo := repository.NewPlannedExpenseRepository(queries)
+
+	userService := service.NewUserService(userRepo)
+	bankAccountService := service.NewBankAccountService(bankAccountRepo)
+	categoryService := service.NewCategoryService(categoryRepo)
+	creditCardService := service.NewCreditCardService(creditCardRepo)
+	invoiceService := service.NewInvoiceService(invoiceRepo, creditCardRepo, ccTxRepo)
+	transactionService := service.NewTransactionService(
+		transactionRepo,
+		bankAccountRepo,
+		categoryRepo,
+		plannedIncomeRepo,
+		plannedExpenseRepo,
+		invoiceRepo,
+	)
+	ccTxService := service.NewCreditCardTransactionService(ccTxRepo, creditCardRepo, categoryRepo, invoiceRepo)
+
+	userHandler := handler.NewUserHandler(userService, jwtManager)
+	bankAccountHandler := handler.NewBankAccountHandler(bankAccountService)
+	categoryHandler := handler.NewCategoryHandler(categoryService)
+	creditCardHandler := handler.NewCreditCardHandler(creditCardService)
+	transactionHandler := handler.NewTransactionHandler(transactionService)
+	ccTxHandler := handler.NewCreditCardTransactionHandler(ccTxService)
+	invoiceHandler := handler.NewInvoiceHandler(invoiceService)
+
 	router := handler.NewRouter(
-		nil, // userHandler
-		nil, // bankAccountHandler
-		nil, // categoryHandler
-		nil, // creditCardHandler
-		nil, // transactionHandler
-		nil, // creditCardTransactionHandler
-		nil, // invoiceHandler
+		userHandler,
+		bankAccountHandler,
+		categoryHandler,
+		creditCardHandler,
+		transactionHandler,
+		ccTxHandler,
+		invoiceHandler,
 		handlermw.Auth(jwtManager),
 	)
 
-	log.Println("Server running on :8080")
-	if err := http.ListenAndServe(":8080", router); err != nil {
+	log.Printf("Server running on :%s", cfg.Port)
+	if err := http.ListenAndServe(":"+cfg.Port, router); err != nil {
 		log.Fatal(err)
 	}
 }
