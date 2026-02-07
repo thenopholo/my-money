@@ -75,7 +75,7 @@ func (ba *BankAccount) SetName(name string) {
 }
 
 func (ba *BankAccount) SetBalance(balance decimal.Decimal) error {
-	if balance.LessThan(decimal.Zero) {
+	if balance.LessThan(decimal.Zero) && !ba.AllowsOverdraft() {
 		return ErrNegativeBalance
 	}
 
@@ -85,6 +85,10 @@ func (ba *BankAccount) SetBalance(balance decimal.Decimal) error {
 
 func (ba *BankAccount) SetIsActive(isActive bool) {
 	ba.IsActive = isActive
+}
+
+func (ba *BankAccount) AllowsOverdraft() bool {
+	return ba.AccountType == AccountTypeChecking
 }
 
 func (ba *BankAccount) ApplyIncome(amount decimal.Decimal) error {
@@ -100,10 +104,5 @@ func (ba *BankAccount) ApplyExpense(amount decimal.Decimal) error {
 		return ErrInvalidAmount
 	}
 
-	newBalance := ba.Balance.Sub(amount)
-	if newBalance.LessThan(decimal.Zero) {
-		return ErrInsufficientBalance
-	}
-
-	return ba.SetBalance(newBalance)
+	return ba.SetBalance(ba.Balance.Sub(amount))
 }

@@ -16,7 +16,7 @@ var (
 	// Erros de BankAccount
 	ErrEmptyBankName       = errors.New("bank name cannot be empty")
 	ErrInvalidAccountType  = errors.New("account type must be 'checking' or 'savings'")
-	ErrNegativeBalance     = errors.New("initial balance cannot be negative")
+	ErrNegativeBalance     = errors.New("balance cannot be negative for savings account")
 	ErrBankAccountNotFound = errors.New("bank account not found")
 
 	// Erros de Category
