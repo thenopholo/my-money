@@ -84,6 +84,7 @@ func main() {
 		ccTxHandler,
 		invoiceHandler,
 		handlermw.Auth(jwtManager),
+		cfg.CORSAllowedOrigins,
 	)
 
 	log.Printf("Server running on :%s", cfg.Port)

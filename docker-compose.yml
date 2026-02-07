@@ -1,4 +1,21 @@
 services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${PORT:-4235}:4235"
+    environment:
+      DATABASE_URL: "postgres://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}?sslmode=disable"
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: "4235"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - my-money-net
+
   db:
     image: postgres:17
     restart: unless-stopped
@@ -10,6 +27,17 @@ services:
       POSTGRES_DB: ${DB_NAME}
     volumes:
       - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - my-money-net
+
+networks:
+  my-money-net:
+    driver: bridge
 
 volumes:
   db:

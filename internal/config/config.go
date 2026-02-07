@@ -3,14 +3,16 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
 type Config struct {
-	DatabaseURL string
-	JWTSecret   string
-	JWTDuration time.Duration
-	Port        string
+	DatabaseURL        string
+	JWTSecret          string
+	JWTDuration        time.Duration
+	Port               string
+	CORSAllowedOrigins []string
 }
 
 func Load() (*Config, error) {
@@ -29,6 +31,13 @@ func Load() (*Config, error) {
 	}
 	if cfg.Port == "" {
 		cfg.Port = "4235"
+	}
+
+	corsOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
+	if corsOrigins != "" {
+		cfg.CORSAllowedOrigins = strings.Split(corsOrigins, ",")
+	} else {
+		cfg.CORSAllowedOrigins = []string{"http://localhost:3000"}
 	}
 
 	return cfg, nil

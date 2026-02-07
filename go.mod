@@ -13,6 +13,7 @@ require github.com/go-chi/chi/v5 v5.2.5
 require github.com/golang-jwt/jwt/v5 v5.3.1
 
 require (
+	github.com/go-chi/cors v1.2.2 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 )
