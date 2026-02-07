@@ -4,12 +4,14 @@ import "errors"
 
 var (
 	// Erros de User
-	ErrInvalidEmail     = errors.New("invalid email format")
-	ErrEmptyName        = errors.New("name cannot be empty")
-	ErrPasswordTooShort = errors.New("password must be at least 8 characters")
-	ErrPasswordTooWeak  = errors.New("password is too weak")
-	ErrEmailInUse       = errors.New("email already in use")
-	ErrUserNotFound     = errors.New("user not found in DB")
+	ErrInvalidEmail       = errors.New("invalid email format")
+	ErrEmptyName          = errors.New("name cannot be empty")
+	ErrPasswordTooShort   = errors.New("password must be at least 8 characters")
+	ErrPasswordTooWeak    = errors.New("password is too weak")
+	ErrEmailInUse         = errors.New("email already in use")
+	ErrUserNotFound       = errors.New("user not found in DB")
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrSamePassword       = errors.New("new password must be different from current password")
 
 	// Erros de BankAccount
 	ErrEmptyBankName       = errors.New("bank name cannot be empty")
