@@ -56,29 +56,30 @@ func (r *creditCardRepository) GetByID(ctx context.Context, id uuid.UUID) (*doma
 		CreditLimit: pgNumericToDecimal(cc.CreditLimit),
 		CloseDay:    int(cc.CloseDay),
 		DueDay:      int(cc.DueDay),
-		IsActive:    true,
+		IsActive:    cc.IsActive,
 		CreatedAt:   cc.CreatedAt.Time,
+		UpdatedAt:   cc.UpdatedAt.Time,
 	}, nil
 }
 
 func (r *creditCardRepository) GetByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.CreditCard, error) {
 	dbCards, err := r.queries.GetCreditCardByUserID(ctx, userID)
 	if err != nil {
-			return nil, err
+		return nil, err
 	}
 
 	cards := make([]*domain.CreditCard, len(dbCards))
 	for i, cc := range dbCards {
-			cards[i] = &domain.CreditCard{
-					ID:          cc.ID,
-					UserID:      cc.UserID,
-					Name:        cc.Name,
-					CreditLimit: pgNumericToDecimal(cc.CreditLimit),
-					CloseDay:    int(cc.CloseDay),
-					DueDay:      int(cc.DueDay),
-					IsActive:    cc.IsActive,
-					CreatedAt:   cc.CreatedAt.Time,
-			}
+		cards[i] = &domain.CreditCard{
+			ID:          cc.ID,
+			UserID:      cc.UserID,
+			Name:        cc.Name,
+			CreditLimit: pgNumericToDecimal(cc.CreditLimit),
+			CloseDay:    int(cc.CloseDay),
+			DueDay:      int(cc.DueDay),
+			IsActive:    cc.IsActive,
+			CreatedAt:   cc.CreatedAt.Time,
+		}
 	}
 
 	return cards, nil
@@ -86,18 +87,18 @@ func (r *creditCardRepository) GetByUserID(ctx context.Context, userID uuid.UUID
 
 func (r *creditCardRepository) Update(ctx context.Context, cc *domain.CreditCard) error {
 	dbCC, err := r.queries.UpdateCreditCard(ctx, postgres.UpdateCreditCardParams{
-			ID:          cc.ID,
-			Name:        cc.Name,
-			CreditLimit: decimalToPgNumeric(cc.CreditLimit),
-			CloseDay:    int32(cc.CloseDay),
-			DueDay:      int32(cc.DueDay),
-			IsActive:    cc.IsActive,
+		ID:          cc.ID,
+		Name:        cc.Name,
+		CreditLimit: decimalToPgNumeric(cc.CreditLimit),
+		CloseDay:    int32(cc.CloseDay),
+		DueDay:      int32(cc.DueDay),
+		IsActive:    cc.IsActive,
 	})
 	if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-					return domain.ErrCreditCardNotFound
-			}
-			return err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrCreditCardNotFound
+		}
+		return err
 	}
 
 	cc.UpdatedAt = dbCC.UpdatedAt.Time
@@ -106,12 +107,13 @@ func (r *creditCardRepository) Update(ctx context.Context, cc *domain.CreditCard
 }
 
 func (r *creditCardRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	err := r.queries.DeleteCreditCard(ctx, id)
-	if err != nil {
+	if _, err := r.queries.GetCreditCardByID(ctx, id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.ErrCreditCardNotFound
 		}
+
 		return err
 	}
-	return nil
+
+	return r.queries.DeleteCreditCard(ctx, id)
 }

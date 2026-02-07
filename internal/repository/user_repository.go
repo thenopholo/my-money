@@ -54,14 +54,15 @@ func (r *userRepository) Update(ctx context.Context, u *domain.User) error {
 }
 
 func (r *userRepository) Delete(ctx context.Context, id uuid.UUID) error {
-  err := r.queries.DeleteUser(ctx, id)
-	if err != nil {
+	if _, err := r.queries.GetUserByID(ctx, id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.ErrUserNotFound
 		}
+
 		return err
 	}
-	return nil
+
+	return r.queries.DeleteUser(ctx, id)
 }
 
 func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
