@@ -31,31 +31,58 @@ type BankAccount struct {
 }
 
 func NewBankAccount(userID uuid.UUID, accountType AccountType, name, bankName string, balance decimal.Decimal) (*BankAccount, error) {
-	if bankName == "" {
-		return nil, ErrEmptyBankName
-	}
-
-	if name == "" {
-		name = bankName
-	}
-
 	if !accountType.IsValid() {
 		return nil, ErrInvalidAccountType
 	}
 
-	if balance.LessThan(decimal.Zero) {
-		return nil, ErrNegativeBalance
-	}
-
-	return &BankAccount{
+	ba := &BankAccount{
 		ID:          uuid.New(),
 		UserID:      userID,
-		Name:        name,
 		AccountType: accountType,
-		BankName:    bankName,
-		Balance:     balance,
 		IsActive:    true,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
-	}, nil
+	}
+
+	if err := ba.SetBankName(bankName); err != nil {
+		return nil, err
+	}
+
+	ba.SetName(name)
+
+	if err := ba.SetBalance(balance); err != nil {
+		return nil, err
+	}
+
+	return ba, nil
+}
+
+func (ba *BankAccount) SetBankName(name string) error {
+	if name == "" {
+		return ErrEmptyBankName
+	}
+
+	ba.BankName = name
+	return nil
+}
+
+func (ba *BankAccount) SetName(name string) {
+	if name == "" {
+		name = ba.BankName
+	}
+
+	ba.Name = name
+}
+
+func (ba *BankAccount) SetBalance(balance decimal.Decimal) error {
+	if balance.LessThan(decimal.Zero) {
+		return ErrNegativeBalance
+	}
+
+	ba.Balance = balance
+	return nil
+}
+
+func (ba *BankAccount) SetIsActive(isActive bool) {
+	ba.IsActive = isActive
 }

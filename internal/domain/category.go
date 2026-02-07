@@ -5,7 +5,7 @@ import "github.com/google/uuid"
 type CategoryType string
 
 const (
-	CategoryTypeIncome CategoryType = "income"
+	CategoryTypeIncome  CategoryType = "income"
 	CategoryTypeExpense CategoryType = "expense"
 )
 
@@ -23,20 +23,43 @@ type Category struct {
 }
 
 func NewCategory(userID uuid.UUID, categoryType CategoryType, name string, color, icon *string) (*Category, error) {
+	c := &Category{
+		ID:     uuid.New(),
+		UserID: userID,
+	}
+
+	if err := c.SetName(name); err != nil {
+		return nil, err
+	}
+
+	if err := c.SetType(categoryType); err != nil {
+		return nil, err
+	}
+
+	c.SetVisuals(color, icon)
+
+	return c, nil
+}
+
+func (c *Category) SetName(name string) error {
 	if name == "" {
-		return nil, ErrEmptyCategoryName
+		return ErrEmptyCategoryName
 	}
 
+	c.Name = name
+	return nil
+}
+
+func (c *Category) SetType(categoryType CategoryType) error {
 	if !categoryType.IsValid() {
-		return nil, ErrInvalidCategoryType
+		return ErrInvalidCategoryType
 	}
 
-	return &Category{
-		ID:           uuid.New(),
-		UserID:       userID,
-		Name:         name,
-		CategoryType: categoryType,
-		Color:        color,
-		Icon:         icon,
-	}, nil
+	c.CategoryType = categoryType
+	return nil
+}
+
+func (c *Category) SetVisuals(color, icon *string) {
+	c.Color = color
+	c.Icon = icon
 }
