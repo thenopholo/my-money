@@ -25,13 +25,17 @@ var (
 	ErrCategoryNotFound    = errors.New("category not found")
 
 	// Erros de CreditCard
-	ErrEmptyCardName      = errors.New("card name cannot be empty")
-	ErrInvalidCloseDay    = errors.New("close day must be between 1 and 28")
-	ErrInvalidLimit       = errors.New("credit limit must be positive")
-	ErrCreditCardNotFound = errors.New("credit card not found")
+	ErrEmptyCardName       = errors.New("card name cannot be empty")
+	ErrInvalidCloseDay     = errors.New("close day must be between 1 and 28")
+	ErrInvalidLimit        = errors.New("credit limit must be positive")
+	ErrCreditCardNotFound  = errors.New("credit card not found")
+	ErrCreditCardInactive  = errors.New("credit card is inactive")
+	ErrCreditLimitExceeded = errors.New("credit limit exceeded")
 
 	// Erros de Invoice
-	ErrInvoiceNotFound = errors.New("invoice not found")
+	ErrInvoiceNotFound     = errors.New("invoice not found")
+	ErrInvoiceNotOpen      = errors.New("invoice is not open")
+	ErrInvoiceCardMismatch = errors.New("invoice does not belong to this credit card")
 
 	// Erros de Transaction
 	ErrInvalidTransactionType = errors.New("transaction type must be 'income' or 'expense'")
@@ -50,6 +54,7 @@ var (
 	ErrPlannedExpenseNotFound = errors.New("planned expense not found")
 	ErrPlannedNotActive       = errors.New("planned item is not active on this date")
 	ErrPlannedNotDueToday     = errors.New("planned item is not due on this date")
+	ErrNoPendingTransactions  = errors.New("no pending transactions for invoice closing")
 
 	// Erros de Invoice (regra de negocio)
 	ErrInvoiceAlreadyPaid   = errors.New("invoice is already paid")
