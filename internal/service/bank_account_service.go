@@ -22,12 +22,11 @@ func (bas *BankAccountService) Create(ctx context.Context, userID uuid.UUID, acc
 		return nil, err
 	}
 
-	newBankAccount, err := bas.bankAccountRepo.Create(ctx, newAccount)
-	if err != nil {
+	if err := bas.bankAccountRepo.Create(ctx, newAccount); err != nil {
 		return nil, err
 	}
 
-	return newBankAccount, nil
+	return newAccount, nil
 }
 
 func (bas *BankAccountService) GetByID(ctx context.Context, id uuid.UUID) (*domain.BankAccount, error) {
@@ -54,20 +53,14 @@ func (bas *BankAccountService) Update(ctx context.Context, id uuid.UUID, name st
 		return nil, err
 	}
 
-	if bankName != "" {
-		return nil, domain.ErrEmptyBankName
+	if err := account.SetBankName(bankName); err != nil {
+		return nil, err
 	}
-	if balance.LessThan(decimal.Zero) {
-		return nil, domain.ErrNegativeBalance
+	account.SetName(name)
+	if err := account.SetBalance(balance); err != nil {
+		return nil, err
 	}
-	if name == "" {
-		name = bankName
-	}
-
-	account.Name = name
-	account.BankName = bankName
-	account.Balance = balance
-	account.IsActive = isActive
+	account.SetIsActive(isActive)
 
 	if err := bas.bankAccountRepo.Update(ctx, account); err != nil {
 		return nil, err
