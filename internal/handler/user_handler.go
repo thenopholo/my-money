@@ -3,15 +3,21 @@ package handler
 import (
 	"net/http"
 
+	"github.com/thenopholo/my-money/internal/auth"
+	handlermw "github.com/thenopholo/my-money/internal/handler/middleware"
 	"github.com/thenopholo/my-money/internal/service"
 )
 
 type UserHandler struct {
 	userService *service.UserService
+	jwtManager  *auth.JWTManager
 }
 
-func NewUserHandler(userService *service.UserService) *UserHandler {
-	return &UserHandler{userService: userService}
+func NewUserHandler(userService *service.UserService, jwtManager *auth.JWTManager) *UserHandler {
+	return &UserHandler{
+		userService: userService,
+		jwtManager:  jwtManager,
+	}
 }
 
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -56,17 +62,27 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.jwtManager == nil {
+		Error(w, http.StatusInternalServerError, "jwt manager not configured")
+		return
+	}
+
+	token, err := h.jwtManager.Generate(user.ID, user.Email)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "failed to generate token")
+		return
+	}
+
 	JSON(w, http.StatusOK, map[string]any{
 		"id":    user.ID,
 		"name":  user.Name,
 		"email": user.Email,
-		"token": "jwt_token_aqui",
+		"token": token,
 	})
 }
 
 func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		UserID          string `json:"user_id"`
 		CurrentPassword string `json:"current_password"`
 		NewPassword     string `json:"new_password"`
 	}
@@ -76,9 +92,9 @@ func (h *UserHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := parseUUID(req.UserID)
-	if err != nil {
-		Error(w, http.StatusBadRequest, "invalid user_id")
+	userID, ok := handlermw.UserIDFromContext(r.Context())
+	if !ok {
+		Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 

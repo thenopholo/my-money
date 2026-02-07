@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 )
 
 func NewRouter(
@@ -15,12 +15,13 @@ func NewRouter(
 	transactionHandler *TransactionHandler,
 	creditCardTransactionHandler *CreditCardTransactionHandler,
 	invoiceHandler *InvoiceHandler,
+	authMiddleware func(http.Handler) http.Handler,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.RequestID)
+	r.Use(chimiddleware.Logger)
+	r.Use(chimiddleware.Recoverer)
+	r.Use(chimiddleware.RequestID)
 
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		JSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -30,11 +31,18 @@ func NewRouter(
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/register", userHandler.Register)
 			r.Post("/login", userHandler.Login)
-			r.Put("/password", userHandler.UpdatePassword)
 		})
 	}
 
 	r.Route("/api", func(r chi.Router) {
+		if authMiddleware != nil {
+			r.Use(authMiddleware)
+		}
+
+		if userHandler != nil {
+			r.Put("/me/password", userHandler.UpdatePassword)
+		}
+
 		if bankAccountHandler != nil {
 			r.Route("/accounts", func(r chi.Router) {
 				r.Post("/", bankAccountHandler.Create)
