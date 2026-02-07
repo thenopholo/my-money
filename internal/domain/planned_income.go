@@ -48,8 +48,8 @@ func NewPlannedIncome(userID, accountID, categoryID uuid.UUID, amount decimal.De
 	}
 
 	if endDate != nil && startDate != nil && endDate.Before(*startDate) {
-    return nil, ErrEndDateBeforeStart
-}
+		return nil, ErrEndDateBeforeStart
+	}
 
 	if description == "" {
 		return nil, ErrEmptyDescription
@@ -69,4 +69,24 @@ func NewPlannedIncome(userID, accountID, categoryID uuid.UUID, amount decimal.De
 		IsActive:    isActive,
 		CreatedAt:   time.Now(),
 	}, nil
+}
+
+func (pi *PlannedIncome) IsActiveOn(date time.Time) bool {
+	if !pi.IsActive {
+		return false
+	}
+
+	if pi.StartDate != nil && date.Before(*pi.StartDate) {
+		return false
+	}
+
+	if pi.EndDate != nil && date.After(*pi.EndDate) {
+		return false
+	}
+
+	return true
+}
+
+func (pi *PlannedIncome) IsDueOn(date time.Time) bool {
+	return date.Day() == pi.DueDay
 }

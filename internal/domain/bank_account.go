@@ -86,3 +86,24 @@ func (ba *BankAccount) SetBalance(balance decimal.Decimal) error {
 func (ba *BankAccount) SetIsActive(isActive bool) {
 	ba.IsActive = isActive
 }
+
+func (ba *BankAccount) ApplyIncome(amount decimal.Decimal) error {
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return ErrInvalidAmount
+	}
+
+	return ba.SetBalance(ba.Balance.Add(amount))
+}
+
+func (ba *BankAccount) ApplyExpense(amount decimal.Decimal) error {
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return ErrInvalidAmount
+	}
+
+	newBalance := ba.Balance.Sub(amount)
+	if newBalance.LessThan(decimal.Zero) {
+		return ErrInsufficientBalance
+	}
+
+	return ba.SetBalance(newBalance)
+}

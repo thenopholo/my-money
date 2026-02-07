@@ -23,6 +23,10 @@ func (s InvoiceStatus) IsExpired() bool {
 	return s == InvoiceStatusExpired
 }
 
+func (s InvoiceStatus) IsOpen() bool {
+	return s == InvoiceStatusOpen
+}
+
 type Invoice struct {
 	ID            uuid.UUID
 	CardID        uuid.UUID
@@ -55,4 +59,17 @@ func NewInvoice(cardID uuid.UUID, referenceDate, dueDate time.Time, paidAt *time
 		Status:        status,
 		PaidAt:        paidAt,
 	}, nil
+}
+
+func (i *Invoice) MarkAsPaid(paidAt time.Time) error {
+	if i.Status.IsPaid() {
+		return ErrInvoiceAlreadyPaid
+	}
+	if i.Status.IsExpired() {
+		return ErrInvoiceAlreadyClosed
+	}
+
+	i.Status = InvoiceStatusPaid
+	i.PaidAt = &paidAt
+	return nil
 }

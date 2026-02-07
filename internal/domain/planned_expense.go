@@ -36,8 +36,8 @@ func NewPlannedExpense(userID, AccountID, categoryID uuid.UUID, amount decimal.D
 	}
 
 	if endDate != nil && startDate != nil && endDate.Before(*startDate) {
-    return nil, ErrEndDateBeforeStart
-}
+		return nil, ErrEndDateBeforeStart
+	}
 
 	if description == "" {
 		return nil, ErrEmptyDescription
@@ -57,4 +57,24 @@ func NewPlannedExpense(userID, AccountID, categoryID uuid.UUID, amount decimal.D
 		IsActive:    isActive,
 		CreatedAt:   time.Now(),
 	}, nil
+}
+
+func (pe *PlannedExpense) IsActiveOn(date time.Time) bool {
+	if !pe.IsActive {
+		return false
+	}
+
+	if pe.StartDate != nil && date.Before(*pe.StartDate) {
+		return false
+	}
+
+	if pe.EndDate != nil && date.After(*pe.EndDate) {
+		return false
+	}
+
+	return true
+}
+
+func (pe *PlannedExpense) IsDueOn(date time.Time) bool {
+	return date.Day() == pe.DueDay
 }

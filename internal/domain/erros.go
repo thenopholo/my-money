@@ -37,6 +37,8 @@ var (
 	ErrInvalidTransactionType = errors.New("transaction type must be 'income' or 'expense'")
 	ErrTransactionInFuture    = errors.New("transaction date cannot be in the future")
 	ErrTransactionNotFound    = errors.New("transaction not found")
+	ErrInsufficientBalance    = errors.New("insufficient balance")
+	ErrCategoryTypeMismatch   = errors.New("category type does not match transaction type")
 
 	// Erros de Planned Income/Expense
 	ErrInvalidDueDay          = errors.New("due day must be between 1 and 31")
@@ -46,6 +48,8 @@ var (
 	ErrEmptyDescription       = errors.New("description cannot be empty")
 	ErrPlannedIncomeNotFound  = errors.New("planned income not found")
 	ErrPlannedExpenseNotFound = errors.New("planned expense not found")
+	ErrPlannedNotActive       = errors.New("planned item is not active on this date")
+	ErrPlannedNotDueToday     = errors.New("planned item is not due on this date")
 
 	// Erros de Invoice (regra de negocio)
 	ErrInvoiceAlreadyPaid   = errors.New("invoice is already paid")
