@@ -32,7 +32,7 @@ type CategoryRepository interface {
 }
 
 type BankAccountRepository interface {
-	Create(ctx context.Context, ba *domain.BankAccount) error
+	Create(ctx context.Context, ba *domain.BankAccount) (*domain.BankAccount, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.BankAccount, error)
 	GetByUserID(ctx context.Context, id uuid.UUID) ([]*domain.BankAccount, error)
 	Update(ctx context.Context, ba *domain.BankAccount) error

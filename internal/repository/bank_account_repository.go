@@ -18,7 +18,7 @@ func NewBankAccountRepository(q *postgres.Queries) *bankAccountRepository {
 	return &bankAccountRepository{queries: q}
 }
 
-func (r *bankAccountRepository) Create(ctx context.Context, ba *domain.BankAccount) error {
+func (r *bankAccountRepository) Create(ctx context.Context, ba *domain.BankAccount) (*domain.BankAccount, error) {
 	dbAccount, err := r.queries.CreateBankAccount(ctx, postgres.CreateBankAccountParams{
 		UserID:      ba.UserID,
 		Name:        ba.Name,
@@ -28,14 +28,14 @@ func (r *bankAccountRepository) Create(ctx context.Context, ba *domain.BankAccou
 		IsActive:    ba.IsActive,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	ba.ID = dbAccount.ID
 	ba.CreatedAt = dbAccount.CreatedAt.Time
 	ba.UpdatedAt = dbAccount.UpdatedAt.Time
 
-	return nil
+	return ba, nil
 }
 
 func (r *bankAccountRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.BankAccount, error) {
