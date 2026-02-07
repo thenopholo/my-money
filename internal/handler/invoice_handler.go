@@ -30,7 +30,7 @@ func (h *InvoiceHandler) CloseMonthInvoice(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	referenceDate, err := parseDate(req.ReferenceDate)
+	referenceDate, err := parseDateOrNow(req.ReferenceDate)
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid reference_date")
 		return

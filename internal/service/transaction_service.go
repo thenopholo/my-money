@@ -303,6 +303,16 @@ func (ts *TransactionService) Update(
 		return nil, err
 	}
 
+	if amount.LessThanOrEqual(decimal.Zero) {
+		return nil, domain.ErrInvalidAmount
+	}
+	if transactionDate.After(time.Now().AddDate(0, 0, 1)) {
+		return nil, domain.ErrTransactionInFuture
+	}
+	if description == "" {
+		description = "Transacao"
+	}
+
 	account, err := ts.accountRepo.GetByID(ctx, tx.AccountID)
 	if err != nil {
 		return nil, err
@@ -326,25 +336,9 @@ func (ts *TransactionService) Update(
 	if err := applyToAccount(account, tx.TransactionType, amount); err != nil {
 		return nil, err
 	}
-
-	updatedTx, err := domain.NewTransaction(
-		tx.AccountID,
-		tx.CategoryID,
-		tx.InvoiceID,
-		tx.PlannedIncome,
-		tx.PlannedExpense,
-		amount,
-		tx.TransactionType,
-		description,
-		transactionDate,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	tx.Amount = updatedTx.Amount
-	tx.Description = updatedTx.Description
-	tx.TransactionDate = updatedTx.TransactionDate
+	tx.Amount = amount
+	tx.Description = description
+	tx.TransactionDate = transactionDate
 
 	if err := ts.accountRepo.Update(ctx, account); err != nil {
 		return nil, err

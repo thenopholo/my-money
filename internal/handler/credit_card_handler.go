@@ -17,7 +17,6 @@ func NewCreditCardHandler(s *service.CreditCardService) *CreditCardHandler {
 
 func (h *CreditCardHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		UserID      string `json:"user_id"`
 		Name        string `json:"name"`
 		CreditLimit string `json:"credit_limit"`
 		CloseDay    int    `json:"close_day"`
@@ -29,9 +28,8 @@ func (h *CreditCardHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := parseUUID(req.UserID)
-	if err != nil {
-		Error(w, http.StatusBadRequest, "invalid user_id")
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
 		return
 	}
 	creditLimit, err := parseDecimal(req.CreditLimit)
@@ -50,9 +48,8 @@ func (h *CreditCardHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CreditCardHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID, err := parseUUID(r.URL.Query().Get("user_id"))
-	if err != nil {
-		Error(w, http.StatusBadRequest, "invalid user_id")
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
 		return
 	}
 
@@ -66,6 +63,11 @@ func (h *CreditCardHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CreditCardHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid id")
@@ -77,11 +79,20 @@ func (h *CreditCardHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
+	if card.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
+		return
+	}
 
 	JSON(w, http.StatusOK, card)
 }
 
 func (h *CreditCardHandler) Update(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid id")
@@ -107,6 +118,16 @@ func (h *CreditCardHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	existing, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+	if existing.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
 	card, err := h.service.Update(r.Context(), id, req.Name, creditLimit, req.CloseDay, req.DueDay, req.IsActive)
 	if err != nil {
 		Error(w, http.StatusBadRequest, err.Error())
@@ -117,9 +138,24 @@ func (h *CreditCardHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CreditCardHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	existing, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+	if existing.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
 		return
 	}
 

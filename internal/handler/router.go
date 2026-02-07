@@ -12,6 +12,8 @@ func NewRouter(
 	bankAccountHandler *BankAccountHandler,
 	categoryHandler *CategoryHandler,
 	creditCardHandler *CreditCardHandler,
+	plannedIncomeHandler *PlannedIncomeHandler,
+	plannedExpenseHandler *PlannedExpenseHandler,
 	transactionHandler *TransactionHandler,
 	creditCardTransactionHandler *CreditCardTransactionHandler,
 	invoiceHandler *InvoiceHandler,
@@ -70,6 +72,26 @@ func NewRouter(
 				r.Get("/{id}", creditCardHandler.GetByID)
 				r.Put("/{id}", creditCardHandler.Update)
 				r.Delete("/{id}", creditCardHandler.Delete)
+			})
+		}
+
+		if plannedIncomeHandler != nil {
+			r.Route("/planned-incomes", func(r chi.Router) {
+				r.Post("/", plannedIncomeHandler.Create)
+				r.Get("/", plannedIncomeHandler.List)
+				r.Get("/{id}", plannedIncomeHandler.GetByID)
+				r.Put("/{id}", plannedIncomeHandler.Update)
+				r.Delete("/{id}", plannedIncomeHandler.Delete)
+			})
+		}
+
+		if plannedExpenseHandler != nil {
+			r.Route("/planned-expenses", func(r chi.Router) {
+				r.Post("/", plannedExpenseHandler.Create)
+				r.Get("/", plannedExpenseHandler.List)
+				r.Get("/{id}", plannedExpenseHandler.GetByID)
+				r.Put("/{id}", plannedExpenseHandler.Update)
+				r.Delete("/{id}", plannedExpenseHandler.Delete)
 			})
 		}
 

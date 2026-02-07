@@ -44,7 +44,7 @@ func (h *CreditCardTransactionHandler) Create(w http.ResponseWriter, r *http.Req
 		Error(w, http.StatusBadRequest, "invalid amount")
 		return
 	}
-	transactionDate, err := parseDate(req.TransactionDate)
+	transactionDate, err := parseDateOrNow(req.TransactionDate)
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid transaction_date")
 		return
@@ -114,7 +114,7 @@ func (h *CreditCardTransactionHandler) Update(w http.ResponseWriter, r *http.Req
 		Error(w, http.StatusBadRequest, "invalid amount")
 		return
 	}
-	transactionDate, err := parseDate(req.TransactionDate)
+	transactionDate, err := parseDateOrNow(req.TransactionDate)
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid transaction_date")
 		return

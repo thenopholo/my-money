@@ -11,6 +11,7 @@ type InvoiceStatus string
 
 const (
 	InvoiceStatusOpen    InvoiceStatus = "open"
+	InvoiceStatusClosed  InvoiceStatus = "closed"
 	InvoiceStatusPaid    InvoiceStatus = "paid"
 	InvoiceStatusExpired InvoiceStatus = "expired"
 )
@@ -21,6 +22,10 @@ func (s InvoiceStatus) IsPaid() bool {
 
 func (s InvoiceStatus) IsExpired() bool {
 	return s == InvoiceStatusExpired
+}
+
+func (s InvoiceStatus) IsClosed() bool {
+	return s == InvoiceStatusClosed
 }
 
 func (s InvoiceStatus) IsOpen() bool {
@@ -65,7 +70,7 @@ func (i *Invoice) MarkAsPaid(paidAt time.Time) error {
 	if i.Status.IsPaid() {
 		return ErrInvoiceAlreadyPaid
 	}
-	if i.Status.IsExpired() {
+	if i.Status.IsExpired() || i.Status.IsClosed() {
 		return ErrInvoiceAlreadyClosed
 	}
 

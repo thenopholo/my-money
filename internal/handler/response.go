@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -35,7 +36,7 @@ func parseDecimal(value string) (decimal.Decimal, error) {
 
 func parseDate(value string) (time.Time, error) {
 	if value == "" {
-		return time.Now(), nil
+		return time.Time{}, fmt.Errorf("date is required")
 	}
 
 	if t, err := time.Parse(time.RFC3339, value); err == nil {
@@ -43,4 +44,12 @@ func parseDate(value string) (time.Time, error) {
 	}
 
 	return time.Parse("2006-01-02", value)
+}
+
+func parseDateOrNow(value string) (time.Time, error) {
+	if value == "" {
+		return time.Now(), nil
+	}
+
+	return parseDate(value)
 }

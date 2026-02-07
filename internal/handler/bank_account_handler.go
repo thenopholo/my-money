@@ -18,7 +18,6 @@ func NewBankAccountHandler(s *service.BankAccountService) *BankAccountHandler {
 
 func (h *BankAccountHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		UserID      string `json:"user_id"`
 		AccountType string `json:"account_type"`
 		Name        string `json:"name"`
 		BankName    string `json:"bank_name"`
@@ -30,9 +29,8 @@ func (h *BankAccountHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := parseUUID(req.UserID)
-	if err != nil {
-		Error(w, http.StatusBadRequest, "invalid user_id")
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
 		return
 	}
 
@@ -59,9 +57,8 @@ func (h *BankAccountHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *BankAccountHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID, err := parseUUID(r.URL.Query().Get("user_id"))
-	if err != nil {
-		Error(w, http.StatusBadRequest, "invalid user_id")
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
 		return
 	}
 
@@ -75,6 +72,11 @@ func (h *BankAccountHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *BankAccountHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid id")
@@ -86,11 +88,20 @@ func (h *BankAccountHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
+	if account.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
+		return
+	}
 
 	JSON(w, http.StatusOK, account)
 }
 
 func (h *BankAccountHandler) Update(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid id")
@@ -115,6 +126,16 @@ func (h *BankAccountHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	existing, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+	if existing.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
 	account, err := h.service.Update(r.Context(), id, req.Name, req.BankName, balance, req.IsActive)
 	if err != nil {
 		Error(w, http.StatusBadRequest, err.Error())
@@ -125,9 +146,24 @@ func (h *BankAccountHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *BankAccountHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	existing, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+	if existing.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
 		return
 	}
 

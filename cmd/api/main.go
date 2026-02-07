@@ -50,6 +50,8 @@ func main() {
 	bankAccountService := service.NewBankAccountService(bankAccountRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
 	creditCardService := service.NewCreditCardService(creditCardRepo)
+	plannedIncomeService := service.NewPlannedIncomeService(plannedIncomeRepo)
+	plannedExpenseService := service.NewPlannedExpenseService(plannedExpenseRepo)
 	invoiceService := service.NewInvoiceService(invoiceRepo, creditCardRepo, ccTxRepo)
 	transactionService := service.NewTransactionService(
 		transactionRepo,
@@ -65,6 +67,8 @@ func main() {
 	bankAccountHandler := handler.NewBankAccountHandler(bankAccountService)
 	categoryHandler := handler.NewCategoryHandler(categoryService)
 	creditCardHandler := handler.NewCreditCardHandler(creditCardService)
+	plannedIncomeHandler := handler.NewPlannedIncomeHandler(plannedIncomeService)
+	plannedExpenseHandler := handler.NewPlannedExpenseHandler(plannedExpenseService)
 	transactionHandler := handler.NewTransactionHandler(transactionService)
 	ccTxHandler := handler.NewCreditCardTransactionHandler(ccTxService)
 	invoiceHandler := handler.NewInvoiceHandler(invoiceService)
@@ -74,6 +78,8 @@ func main() {
 		bankAccountHandler,
 		categoryHandler,
 		creditCardHandler,
+		plannedIncomeHandler,
+		plannedExpenseHandler,
 		transactionHandler,
 		ccTxHandler,
 		invoiceHandler,

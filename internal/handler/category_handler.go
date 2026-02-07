@@ -18,7 +18,6 @@ func NewCategoryHandler(s *service.CategoryService) *CategoryHandler {
 
 func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		UserID       string  `json:"user_id"`
 		Name         string  `json:"name"`
 		CategoryType string  `json:"category_type"`
 		Color        *string `json:"color"`
@@ -30,9 +29,8 @@ func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := parseUUID(req.UserID)
-	if err != nil {
-		Error(w, http.StatusBadRequest, "invalid user_id")
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
 		return
 	}
 
@@ -46,9 +44,8 @@ func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CategoryHandler) List(w http.ResponseWriter, r *http.Request) {
-	userID, err := parseUUID(r.URL.Query().Get("user_id"))
-	if err != nil {
-		Error(w, http.StatusBadRequest, "invalid user_id")
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
 		return
 	}
 
@@ -62,6 +59,11 @@ func (h *CategoryHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid id")
@@ -73,11 +75,20 @@ func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
+	if category.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
+		return
+	}
 
 	JSON(w, http.StatusOK, category)
 }
 
 func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid id")
@@ -96,6 +107,16 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	existing, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+	if existing.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
 	category, err := h.service.Update(r.Context(), id, domain.CategoryType(req.CategoryType), req.Name, req.Color, req.Icon)
 	if err != nil {
 		Error(w, http.StatusBadRequest, err.Error())
@@ -106,9 +127,24 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	existing, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+	if existing.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
 		return
 	}
 

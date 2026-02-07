@@ -46,7 +46,7 @@ func (h *TransactionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "invalid amount")
 		return
 	}
-	transactionDate, err := parseDate(req.TransactionDate)
+	transactionDate, err := parseDateOrNow(req.TransactionDate)
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid transaction_date")
 		return
@@ -84,7 +84,7 @@ func (h *TransactionHandler) CreateFromPlannedIncome(w http.ResponseWriter, r *h
 		return
 	}
 
-	transactionDate, err := parseDate(req.TransactionDate)
+	transactionDate, err := parseDateOrNow(req.TransactionDate)
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid transaction_date")
 		return
@@ -114,7 +114,7 @@ func (h *TransactionHandler) CreateFromPlannedExpense(w http.ResponseWriter, r *
 		return
 	}
 
-	transactionDate, err := parseDate(req.TransactionDate)
+	transactionDate, err := parseDateOrNow(req.TransactionDate)
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid transaction_date")
 		return
@@ -158,7 +158,7 @@ func (h *TransactionHandler) PayInvoice(w http.ResponseWriter, r *http.Request) 
 		Error(w, http.StatusBadRequest, "invalid category_id")
 		return
 	}
-	paymentDate, err := parseDate(req.PaymentDate)
+	paymentDate, err := parseDateOrNow(req.PaymentDate)
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid payment_date")
 		return
@@ -227,7 +227,7 @@ func (h *TransactionHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "invalid amount")
 		return
 	}
-	transactionDate, err := parseDate(req.TransactionDate)
+	transactionDate, err := parseDateOrNow(req.TransactionDate)
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid transaction_date")
 		return

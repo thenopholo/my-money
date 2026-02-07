@@ -28,7 +28,7 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("missing required env var: JWT_SECRET")
 	}
 	if cfg.Port == "" {
-		return nil, fmt.Errorf("missing required env var: PORT")
+		cfg.Port = "8080"
 	}
 
 	return cfg, nil
