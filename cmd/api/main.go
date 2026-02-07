@@ -69,9 +69,9 @@ func main() {
 	creditCardHandler := handler.NewCreditCardHandler(creditCardService)
 	plannedIncomeHandler := handler.NewPlannedIncomeHandler(plannedIncomeService)
 	plannedExpenseHandler := handler.NewPlannedExpenseHandler(plannedExpenseService)
-	transactionHandler := handler.NewTransactionHandler(transactionService)
-	ccTxHandler := handler.NewCreditCardTransactionHandler(ccTxService)
-	invoiceHandler := handler.NewInvoiceHandler(invoiceService)
+	transactionHandler := handler.NewTransactionHandler(transactionService, bankAccountService)
+	ccTxHandler := handler.NewCreditCardTransactionHandler(ccTxService, creditCardService)
+	invoiceHandler := handler.NewInvoiceHandler(invoiceService, creditCardService)
 
 	router := handler.NewRouter(
 		userHandler,

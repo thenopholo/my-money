@@ -9,14 +9,20 @@ import (
 )
 
 type TransactionHandler struct {
-	service *service.TransactionService
+	service        *service.TransactionService
+	accountService *service.BankAccountService
 }
 
-func NewTransactionHandler(s *service.TransactionService) *TransactionHandler {
-	return &TransactionHandler{service: s}
+func NewTransactionHandler(s *service.TransactionService, accountService *service.BankAccountService) *TransactionHandler {
+	return &TransactionHandler{service: s, accountService: accountService}
 }
 
 func (h *TransactionHandler) Create(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	var req struct {
 		AccountID       string `json:"account_id"`
 		CategoryID      string `json:"category_id"`
@@ -36,6 +42,18 @@ func (h *TransactionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "invalid account_id")
 		return
 	}
+
+	// Verifica ownership da conta bancária
+	account, err := h.accountService.GetByID(r.Context(), accountID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "account not found")
+		return
+	}
+	if account.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
 	categoryID, err := parseUUID(req.CategoryID)
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid category_id")
@@ -174,6 +192,11 @@ func (h *TransactionHandler) PayInvoice(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *TransactionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid id")
@@ -186,13 +209,40 @@ func (h *TransactionHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Verifica ownership via conta bancária
+	account, err := h.accountService.GetByID(r.Context(), tx.AccountID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "account not found")
+		return
+	}
+	if account.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
 	JSON(w, http.StatusOK, tx)
 }
 
 func (h *TransactionHandler) ListByAccount(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	accountID, err := parseUUID(chi.URLParam(r, "accountID"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid accountID")
+		return
+	}
+
+	// Verifica ownership da conta
+	account, err := h.accountService.GetByID(r.Context(), accountID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "account not found")
+		return
+	}
+	if account.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
 		return
 	}
 
@@ -206,9 +256,30 @@ func (h *TransactionHandler) ListByAccount(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *TransactionHandler) Update(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	// Verifica ownership via transação → conta
+	existing, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+	account, err := h.accountService.GetByID(r.Context(), existing.AccountID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "account not found")
+		return
+	}
+	if account.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
 		return
 	}
 
@@ -243,9 +314,30 @@ func (h *TransactionHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TransactionHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	// Verifica ownership via transação → conta
+	existing, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+	account, err := h.accountService.GetByID(r.Context(), existing.AccountID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "account not found")
+		return
+	}
+	if account.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
 		return
 	}
 

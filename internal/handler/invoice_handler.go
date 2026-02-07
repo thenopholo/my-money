@@ -8,17 +8,34 @@ import (
 )
 
 type InvoiceHandler struct {
-	service *service.InvoiceService
+	service     *service.InvoiceService
+	cardService *service.CreditCardService
 }
 
-func NewInvoiceHandler(s *service.InvoiceService) *InvoiceHandler {
-	return &InvoiceHandler{service: s}
+func NewInvoiceHandler(s *service.InvoiceService, cardService *service.CreditCardService) *InvoiceHandler {
+	return &InvoiceHandler{service: s, cardService: cardService}
 }
 
 func (h *InvoiceHandler) CloseMonthInvoice(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	cardID, err := parseUUID(chi.URLParam(r, "cardID"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid cardID")
+		return
+	}
+
+	// Verifica ownership do cartão
+	card, err := h.cardService.GetByID(r.Context(), cardID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "credit card not found")
+		return
+	}
+	if card.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
 		return
 	}
 
@@ -46,6 +63,11 @@ func (h *InvoiceHandler) CloseMonthInvoice(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *InvoiceHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid id")
@@ -58,13 +80,40 @@ func (h *InvoiceHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Verifica ownership via cartão
+	card, err := h.cardService.GetByID(r.Context(), invoice.CardID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "credit card not found")
+		return
+	}
+	if card.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
 	JSON(w, http.StatusOK, invoice)
 }
 
 func (h *InvoiceHandler) ListByCard(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	cardID, err := parseUUID(chi.URLParam(r, "cardID"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid cardID")
+		return
+	}
+
+	// Verifica ownership do cartão
+	card, err := h.cardService.GetByID(r.Context(), cardID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "credit card not found")
+		return
+	}
+	if card.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
 		return
 	}
 
@@ -78,9 +127,30 @@ func (h *InvoiceHandler) ListByCard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *InvoiceHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	userID, ok := requireUserIDFromContext(w, r)
+	if !ok {
+		return
+	}
+
 	id, err := parseUUID(chi.URLParam(r, "id"))
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	// Verifica ownership via fatura → cartão
+	invoice, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+	card, err := h.cardService.GetByID(r.Context(), invoice.CardID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "credit card not found")
+		return
+	}
+	if card.UserID != userID {
+		Error(w, http.StatusForbidden, "forbidden")
 		return
 	}
 
