@@ -101,6 +101,32 @@ func TestParseBankCSV(t *testing.T) {
 			wantErr:     true,
 			wantErrType: domain.ErrInvalidCSVFormat,
 		},
+		{
+			name: "formato Nubank (Data Valor Identificador Descricao)",
+			csv: `Data,Valor,Identificador,Descrição
+01/01/2026,30.00,6956d72b-564e-43ea-b334-4203ec54f79b,Transferência recebida pelo Pix - RODRIGO
+01/01/2026,-30.00,6956d73c-7664-475a-a294-074554bb3ac2,Pagamento de fatura
+07/01/2026,-32.00,695ec682-8505-49a5-a238-8fb2ef0a939d,Compra no débito - CASARREDA 0001`,
+			wantLen: 3,
+			wantFirst: domain.RawCSVTransaction{
+				Description:     "Transferência recebida pelo Pix - RODRIGO",
+				Amount:          decimal.NewFromFloat(30.00),
+				TransactionDate: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				TransactionType: domain.TransactionTypeIncome,
+			},
+		},
+		{
+			name: "formato Nubank com valores negativos",
+			csv: `Data,Valor,Identificador,Descrição
+07/01/2026,-647.94,695eb778-09e3-46e5-89f9-3eeb2de4ec30,Resgate de empréstimo`,
+			wantLen: 1,
+			wantFirst: domain.RawCSVTransaction{
+				Description:     "Resgate de empréstimo",
+				Amount:          decimal.NewFromFloat(647.94),
+				TransactionDate: time.Date(2026, 1, 7, 0, 0, 0, 0, time.UTC),
+				TransactionType: domain.TransactionTypeExpense,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -332,6 +358,85 @@ func TestDetectSeparator(t *testing.T) {
 			got := detectSeparator(tt.content)
 			if got != tt.want {
 				t.Errorf("detectSeparator() = %c, want %c", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDetectColumnMapping(t *testing.T) {
+	tests := []struct {
+		name           string
+		header         []string
+		wantDate       int
+		wantAmount     int
+		wantDesc       int
+		wantInstall    int
+		wantHeaderOK   bool
+	}{
+		{
+			name:         "formato classico Data Descricao Valor",
+			header:       []string{"Data", "Descrição", "Valor"},
+			wantDate:     0,
+			wantAmount:   2,
+			wantDesc:     1,
+			wantInstall:  -1,
+			wantHeaderOK: true,
+		},
+		{
+			name:         "formato Nubank Data Valor Identificador Descricao",
+			header:       []string{"Data", "Valor", "Identificador", "Descrição"},
+			wantDate:     0,
+			wantAmount:   1,
+			wantDesc:     3,
+			wantInstall:  -1,
+			wantHeaderOK: true,
+		},
+		{
+			name:         "formato com parcela",
+			header:       []string{"Data", "Descrição", "Valor", "Parcela"},
+			wantDate:     0,
+			wantAmount:   2,
+			wantDesc:     1,
+			wantInstall:  3,
+			wantHeaderOK: true,
+		},
+		{
+			name:         "ingles Date Description Amount",
+			header:       []string{"Date", "Description", "Amount"},
+			wantDate:     0,
+			wantAmount:   2,
+			wantDesc:     1,
+			wantInstall:  -1,
+			wantHeaderOK: true,
+		},
+		{
+			name:         "colunas nao reconhecidas",
+			header:       []string{"Foo", "Bar", "Baz"},
+			wantDate:     -1,
+			wantAmount:   -1,
+			wantDesc:     -1,
+			wantInstall:  -1,
+			wantHeaderOK: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := detectColumnMapping(tt.header)
+			if m.dateIdx != tt.wantDate {
+				t.Errorf("dateIdx = %d, want %d", m.dateIdx, tt.wantDate)
+			}
+			if m.amountIdx != tt.wantAmount {
+				t.Errorf("amountIdx = %d, want %d", m.amountIdx, tt.wantAmount)
+			}
+			if m.descriptionIdx != tt.wantDesc {
+				t.Errorf("descriptionIdx = %d, want %d", m.descriptionIdx, tt.wantDesc)
+			}
+			if m.installmentIdx != tt.wantInstall {
+				t.Errorf("installmentIdx = %d, want %d", m.installmentIdx, tt.wantInstall)
+			}
+			if m.headerFound != tt.wantHeaderOK {
+				t.Errorf("headerFound = %v, want %v", m.headerFound, tt.wantHeaderOK)
 			}
 		})
 	}

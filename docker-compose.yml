@@ -14,6 +14,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      llm-agent:
+        condition: service_healthy
     networks:
       - my-money-net
 
@@ -27,6 +29,12 @@ services:
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       LLM_AGENT_PORT: "8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
     networks:
       - my-money-net
 

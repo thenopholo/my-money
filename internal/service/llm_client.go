@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	llmTimeout    = 30 * time.Second
+	llmTimeout    = 120 * time.Second // 2 minutos — CSVs com muitas transações podem demorar na OpenAI
 	llmMaxRetries = 3
 )
 
@@ -93,9 +93,11 @@ func (c *LLMClient) Categorize(
 	categories []*domain.Category,
 	importType domain.ImportType,
 ) (*llmCategorizationResponse, error) {
-	// Monta request
+	// Monta request — inicializa slices como arrays vazios para evitar null no JSON
 	reqBody := llmCategorizationRequest{
-		ImportType: string(importType),
+		Transactions:       make([]llmRawTransaction, 0, len(transactions)),
+		ExistingCategories: make([]llmExistingCategory, 0, len(categories)),
+		ImportType:         string(importType),
 	}
 
 	for _, tx := range transactions {
@@ -179,6 +181,7 @@ func (c *LLMClient) doRequest(ctx context.Context, jsonBody []byte) (*llmCategor
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		log.Printf("LLM agent error: status=%d body=%s", resp.StatusCode, string(body))
 		return nil, fmt.Errorf("LLM returned status %d: %s", resp.StatusCode, string(body))
 	}
 

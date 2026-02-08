@@ -70,8 +70,26 @@ run: ## Roda a aplicação
 	go run ./cmd/api
 
 .PHONY: dev
-dev: ## Roda com hot-reload (air)
+dev: ## Roda API (air) + LLM Agent juntos
+	@echo "🚀 Iniciando LLM Agent (Python) e API Go (air)..."
+	@(cd services/llm-agent && . .venv/bin/activate && uvicorn src.main:app --host 0.0.0.0 --port $${LLM_AGENT_PORT:-8001} --log-level info) & \
+	LLM_PID=$$!; \
+	echo "   ✔ LLM Agent PID: $$LLM_PID (porta $${LLM_AGENT_PORT:-8001})"; \
+	trap "echo '⏹  Parando LLM Agent...'; kill $$LLM_PID 2>/dev/null; wait $$LLM_PID 2>/dev/null" EXIT INT TERM; \
+	sleep 1; \
+	echo "   ✔ Iniciando air (Go API)..."; \
 	air
+
+.PHONY: agent-dev
+agent-dev: ## Roda apenas o LLM Agent (Python)
+	@echo "🤖 Iniciando LLM Agent na porta $${LLM_AGENT_PORT:-8001}..."
+	cd services/llm-agent && . .venv/bin/activate && uvicorn src.main:app --host 0.0.0.0 --port $${LLM_AGENT_PORT:-8001} --reload --log-level info
+
+.PHONY: agent-install
+agent-install: ## Instala dependências do LLM Agent (Python)
+	@echo "📦 Instalando dependências do LLM Agent..."
+	cd services/llm-agent && uv venv && . .venv/bin/activate && uv pip install -r pyproject.toml
+	@echo "   ✔ Dependências instaladas!"
 
 .PHONY: build
 build: ## Compila a aplicação
@@ -94,16 +112,18 @@ lint: ## Roda o linter
 # ==================== SETUP ====================
 
 .PHONY: setup
-setup: ## Setup inicial do projeto
-	@echo "Instalando dependências..."
+setup: ## Setup inicial do projeto (Go + Python)
+	@echo "📦 Instalando dependências Go..."
 	go mod download
-	@echo "Instalando ferramentas..."
+	@echo "🔧 Instalando ferramentas Go..."
 	go install github.com/air-verse/air@latest
 	go install github.com/jackc/tern/v2@latest
 	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
-	@echo "Copiando .env.example para .env..."
+	@echo "🐍 Configurando LLM Agent (Python)..."
+	$(MAKE) agent-install
+	@echo "📄 Copiando .env.example para .env..."
 	@if [ ! -f .env ]; then cp .env.example .env; fi
-	@echo "Setup completo!"
+	@echo "✅ Setup completo!"
 
 # ==================== DOCKER ====================
 

@@ -28,22 +28,123 @@ var parseDateFormats = []string{
 // installmentRegex captura parcelas no formato "1/3", "02/12", etc.
 var installmentRegex = regexp.MustCompile(`(\d{1,2})/(\d{1,2})`)
 
+// columnMapping armazena os índices das colunas conhecidas no CSV.
+// Permite parsear CSVs com diferentes ordens de colunas (ex.: Nubank, Itaú, etc.).
+type columnMapping struct {
+	dateIdx        int
+	descriptionIdx int
+	amountIdx      int
+	installmentIdx int  // -1 se ausente
+	headerFound    bool // true se as 3 colunas obrigatórias foram detectadas
+}
+
+// defaultBankMapping é o mapeamento posicional legado: Data, Descrição, Valor
+var defaultBankMapping = columnMapping{
+	dateIdx:        0,
+	descriptionIdx: 1,
+	amountIdx:      2,
+	installmentIdx: -1,
+	headerFound:    false,
+}
+
+// defaultCreditCardMapping é o mapeamento posicional legado: Data, Descrição, Valor, Parcela
+var defaultCreditCardMapping = columnMapping{
+	dateIdx:        0,
+	descriptionIdx: 1,
+	amountIdx:      2,
+	installmentIdx: 3,
+	headerFound:    false,
+}
+
+// detectColumnMapping detecta os índices das colunas a partir do cabeçalho do CSV.
+// Retorna um mapping com headerFound=false se não conseguir identificar as 3 colunas obrigatórias.
+func detectColumnMapping(header []string) columnMapping {
+	m := columnMapping{
+		dateIdx:        -1,
+		descriptionIdx: -1,
+		amountIdx:      -1,
+		installmentIdx: -1,
+	}
+
+	for i, col := range header {
+		colLower := strings.ToLower(strings.TrimSpace(col))
+		switch {
+		case containsAnyKeyword(colLower, "data", "date"):
+			m.dateIdx = i
+		case containsAnyKeyword(colLower, "valor", "value", "amount"):
+			m.amountIdx = i
+		case containsAnyKeyword(colLower, "descrição", "descricao", "description"):
+			m.descriptionIdx = i
+		case containsAnyKeyword(colLower, "parcela", "installment"):
+			m.installmentIdx = i
+			// "identificador", "identifier", "id" são intencionalmente ignorados
+		}
+	}
+
+	m.headerFound = m.dateIdx != -1 && m.descriptionIdx != -1 && m.amountIdx != -1
+	return m
+}
+
+// containsAnyKeyword verifica se o texto contém alguma das keywords.
+func containsAnyKeyword(text string, keywords ...string) bool {
+	for _, kw := range keywords {
+		if strings.Contains(text, kw) {
+			return true
+		}
+	}
+	return false
+}
+
+// extractDescription extrai a descrição da linha usando o mapeamento.
+// Se a coluna de descrição é a última coluna mapeada, junta campos extras (commas na descrição).
+func extractDescription(row []string, m columnMapping, sep string) string {
+	if m.descriptionIdx >= len(row) {
+		return ""
+	}
+
+	// Descobre o maior índice mapeado (exceto descrição)
+	maxMappedIdx := m.dateIdx
+	if m.amountIdx > maxMappedIdx {
+		maxMappedIdx = m.amountIdx
+	}
+	if m.installmentIdx > maxMappedIdx {
+		maxMappedIdx = m.installmentIdx
+	}
+
+	// Se descrição é a última coluna mapeada e há campos extras, junta tudo
+	if m.descriptionIdx > maxMappedIdx && m.descriptionIdx < len(row) {
+		// Descrição é a última coluna conhecida — junta campos extras que
+		// podem ter sido splitados por vírgulas na descrição
+		parts := row[m.descriptionIdx:]
+		return strings.TrimSpace(strings.Join(parts, string(sep)))
+	}
+
+	return strings.TrimSpace(row[m.descriptionIdx])
+}
+
 // ParseBankCSV parseia um CSV de extrato bancário e retorna transações brutas.
+// Suporta diferentes ordens de colunas através de detecção automática do cabeçalho
+// (ex.: Nubank "Data,Valor,Identificador,Descrição" ou Itaú "Data;Descrição;Valor").
 func ParseBankCSV(reader io.Reader) ([]domain.RawCSVTransaction, error) {
 	records, sep, err := readCSVRecords(reader)
 	if err != nil {
 		return nil, err
 	}
-	_ = sep
 
 	if len(records) == 0 {
 		return nil, domain.ErrEmptyCSV
 	}
 
-	// Detecta cabeçalho e pula se necessário
+	// Detecta cabeçalho e mapeamento de colunas
 	startIdx := 0
+	mapping := defaultBankMapping
+
 	if isHeaderRow(records[0]) {
 		startIdx = 1
+		detected := detectColumnMapping(records[0])
+		if detected.headerFound {
+			mapping = detected
+		}
 	}
 
 	if len(records) <= startIdx {
@@ -59,24 +160,25 @@ func ParseBankCSV(reader io.Reader) ([]domain.RawCSVTransaction, error) {
 			continue
 		}
 
-		// Extrato bancário: mínimo 3 colunas (data, descrição, valor)
-		if len(row) < 3 {
-			return nil, fmt.Errorf("line %d: %w: expected at least 3 columns, got %d", i+1, domain.ErrInvalidCSVFormat, len(row))
+		// Verifica se a linha tem colunas suficientes para os índices mapeados
+		minCols := maxIdx(mapping.dateIdx, mapping.descriptionIdx, mapping.amountIdx) + 1
+		if len(row) < minCols {
+			return nil, fmt.Errorf("line %d: %w: expected at least %d columns, got %d", i+1, domain.ErrInvalidCSVFormat, minCols, len(row))
 		}
 
-		date, err := parseCSVDate(strings.TrimSpace(row[0]))
+		date, err := parseCSVDate(strings.TrimSpace(row[mapping.dateIdx]))
 		if err != nil {
-			return nil, fmt.Errorf("line %d: %w: invalid date %q", i+1, domain.ErrInvalidCSVFormat, row[0])
+			return nil, fmt.Errorf("line %d: %w: invalid date %q", i+1, domain.ErrInvalidCSVFormat, row[mapping.dateIdx])
 		}
 
-		description := strings.TrimSpace(row[1])
+		description := extractDescription(row, mapping, string(sep))
 		if description == "" {
 			return nil, fmt.Errorf("line %d: %w: empty description", i+1, domain.ErrInvalidCSVFormat)
 		}
 
-		amount, err := parseCSVAmount(strings.TrimSpace(row[2]))
+		amount, err := parseCSVAmount(strings.TrimSpace(row[mapping.amountIdx]))
 		if err != nil {
-			return nil, fmt.Errorf("line %d: %w: invalid amount %q", i+1, domain.ErrInvalidCSVFormat, row[2])
+			return nil, fmt.Errorf("line %d: %w: invalid amount %q", i+1, domain.ErrInvalidCSVFormat, row[mapping.amountIdx])
 		}
 
 		txType := domain.TransactionTypeIncome
@@ -101,21 +203,27 @@ func ParseBankCSV(reader io.Reader) ([]domain.RawCSVTransaction, error) {
 }
 
 // ParseCreditCardCSV parseia um CSV de fatura de cartão de crédito e retorna transações brutas.
+// Suporta diferentes ordens de colunas através de detecção automática do cabeçalho.
 func ParseCreditCardCSV(reader io.Reader) ([]domain.RawCSVTransaction, error) {
 	records, sep, err := readCSVRecords(reader)
 	if err != nil {
 		return nil, err
 	}
-	_ = sep
 
 	if len(records) == 0 {
 		return nil, domain.ErrEmptyCSV
 	}
 
-	// Detecta cabeçalho e pula se necessário
+	// Detecta cabeçalho e mapeamento de colunas
 	startIdx := 0
+	mapping := defaultCreditCardMapping
+
 	if isHeaderRow(records[0]) {
 		startIdx = 1
+		detected := detectColumnMapping(records[0])
+		if detected.headerFound {
+			mapping = detected
+		}
 	}
 
 	if len(records) <= startIdx {
@@ -131,24 +239,25 @@ func ParseCreditCardCSV(reader io.Reader) ([]domain.RawCSVTransaction, error) {
 			continue
 		}
 
-		// Fatura de cartão: mínimo 3 colunas (data, descrição, valor), parcela é opcional (4ª coluna)
-		if len(row) < 3 {
-			return nil, fmt.Errorf("line %d: %w: expected at least 3 columns, got %d", i+1, domain.ErrInvalidCSVFormat, len(row))
+		// Verifica se a linha tem colunas suficientes para os índices mapeados
+		minCols := maxIdx(mapping.dateIdx, mapping.descriptionIdx, mapping.amountIdx) + 1
+		if len(row) < minCols {
+			return nil, fmt.Errorf("line %d: %w: expected at least %d columns, got %d", i+1, domain.ErrInvalidCSVFormat, minCols, len(row))
 		}
 
-		date, err := parseCSVDate(strings.TrimSpace(row[0]))
+		date, err := parseCSVDate(strings.TrimSpace(row[mapping.dateIdx]))
 		if err != nil {
-			return nil, fmt.Errorf("line %d: %w: invalid date %q", i+1, domain.ErrInvalidCSVFormat, row[0])
+			return nil, fmt.Errorf("line %d: %w: invalid date %q", i+1, domain.ErrInvalidCSVFormat, row[mapping.dateIdx])
 		}
 
-		description := strings.TrimSpace(row[1])
+		description := extractDescription(row, mapping, string(sep))
 		if description == "" {
 			return nil, fmt.Errorf("line %d: %w: empty description", i+1, domain.ErrInvalidCSVFormat)
 		}
 
-		amount, err := parseCSVAmount(strings.TrimSpace(row[2]))
+		amount, err := parseCSVAmount(strings.TrimSpace(row[mapping.amountIdx]))
 		if err != nil {
-			return nil, fmt.Errorf("line %d: %w: invalid amount %q", i+1, domain.ErrInvalidCSVFormat, row[2])
+			return nil, fmt.Errorf("line %d: %w: invalid amount %q", i+1, domain.ErrInvalidCSVFormat, row[mapping.amountIdx])
 		}
 
 		// Transações de cartão são sempre despesas
@@ -163,9 +272,9 @@ func ParseCreditCardCSV(reader io.Reader) ([]domain.RawCSVTransaction, error) {
 			TransactionType: domain.TransactionTypeExpense,
 		}
 
-		// Tenta extrair parcelas (coluna 4 se existir, ou do campo descrição)
-		if len(row) >= 4 {
-			installmentStr := strings.TrimSpace(row[3])
+		// Tenta extrair parcelas da coluna mapeada
+		if mapping.installmentIdx != -1 && mapping.installmentIdx < len(row) {
+			installmentStr := strings.TrimSpace(row[mapping.installmentIdx])
 			if installmentStr != "" {
 				current, total, ok := parseInstallments(installmentStr)
 				if ok {
@@ -192,6 +301,17 @@ func ParseCreditCardCSV(reader io.Reader) ([]domain.RawCSVTransaction, error) {
 	}
 
 	return transactions, nil
+}
+
+// maxIdx retorna o maior valor entre os índices fornecidos.
+func maxIdx(indices ...int) int {
+	m := indices[0]
+	for _, v := range indices[1:] {
+		if v > m {
+			m = v
+		}
+	}
+	return m
 }
 
 // readCSVRecords lê o CSV tentando diferentes separadores e retorna os registros.

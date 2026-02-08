@@ -24,7 +24,7 @@ class CategorizationRequest(BaseModel):
     """Request recebida do backend Go."""
 
     transactions: list[RawTransaction]
-    existing_categories: list[ExistingCategory]
+    existing_categories: list[ExistingCategory] = []
     import_type: str  # "bank_account" | "credit_card"
 
 
