@@ -13,6 +13,7 @@ type Config struct {
 	JWTDuration        time.Duration
 	Port               string
 	CORSAllowedOrigins []string
+	LLMAgentURL        string
 }
 
 func Load() (*Config, error) {
@@ -38,6 +39,11 @@ func Load() (*Config, error) {
 		cfg.CORSAllowedOrigins = strings.Split(corsOrigins, ",")
 	} else {
 		cfg.CORSAllowedOrigins = []string{"http://localhost:3000"}
+	}
+
+	cfg.LLMAgentURL = os.Getenv("LLM_AGENT_URL")
+	if cfg.LLMAgentURL == "" {
+		cfg.LLMAgentURL = "http://localhost:8001"
 	}
 
 	return cfg, nil

@@ -64,4 +64,14 @@ var (
 	// Erros de CreditCardTransaction
 	ErrInvalidInstallments           = errors.New("installments must be between 1 and 48")
 	ErrCreditCardTransactionNotFound = errors.New("credit card transaction not found")
+
+	// Erros de Import
+	ErrInvalidImportType       = errors.New("import type must be 'bank_account' or 'credit_card'")
+	ErrInvalidCSVFormat        = errors.New("invalid CSV format")
+	ErrEmptyCSV                = errors.New("CSV file is empty")
+	ErrCSVTooLarge             = errors.New("CSV file exceeds maximum size")
+	ErrDuplicateTransaction    = errors.New("duplicate transaction detected")
+	ErrLLMUnavailable          = errors.New("LLM categorization service unavailable")
+	ErrLLMTimeout              = errors.New("LLM categorization timed out")
+	ErrNoTransactionsToImport  = errors.New("no valid transactions to import")
 )

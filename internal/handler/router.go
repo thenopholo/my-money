@@ -18,6 +18,7 @@ func NewRouter(
 	transactionHandler *TransactionHandler,
 	creditCardTransactionHandler *CreditCardTransactionHandler,
 	invoiceHandler *InvoiceHandler,
+	importHandler *ImportHandler,
 	authMiddleware func(http.Handler) http.Handler,
 	corsAllowedOrigins []string,
 ) *chi.Mux {
@@ -132,6 +133,13 @@ func NewRouter(
 			r.Get("/credit-cards/{cardID}/invoices", invoiceHandler.ListByCard)
 			r.Get("/invoices/{id}", invoiceHandler.GetByID)
 			r.Delete("/invoices/{id}", invoiceHandler.Delete)
+		}
+
+		if importHandler != nil {
+			r.Route("/import", func(r chi.Router) {
+				r.Post("/preview", importHandler.Preview)
+				r.Post("/confirm", importHandler.Confirm)
+			})
 		}
 	})
 

@@ -63,6 +63,16 @@ func main() {
 	)
 	ccTxService := service.NewCreditCardTransactionService(ccTxRepo, creditCardRepo, categoryRepo, invoiceRepo)
 
+	llmClient := service.NewLLMClient(cfg.LLMAgentURL)
+	importService := service.NewImportService(
+		llmClient,
+		transactionRepo,
+		ccTxRepo,
+		categoryRepo,
+		bankAccountRepo,
+		creditCardRepo,
+	)
+
 	userHandler := handler.NewUserHandler(userService, jwtManager)
 	bankAccountHandler := handler.NewBankAccountHandler(bankAccountService)
 	categoryHandler := handler.NewCategoryHandler(categoryService)
@@ -72,6 +82,7 @@ func main() {
 	transactionHandler := handler.NewTransactionHandler(transactionService, bankAccountService)
 	ccTxHandler := handler.NewCreditCardTransactionHandler(ccTxService, creditCardService)
 	invoiceHandler := handler.NewInvoiceHandler(invoiceService, creditCardService)
+	importHandler := handler.NewImportHandler(importService, bankAccountService, creditCardService)
 
 	router := handler.NewRouter(
 		userHandler,
@@ -83,6 +94,7 @@ func main() {
 		transactionHandler,
 		ccTxHandler,
 		invoiceHandler,
+		importHandler,
 		handlermw.Auth(jwtManager),
 		cfg.CORSAllowedOrigins,
 	)
