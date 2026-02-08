@@ -10,9 +10,23 @@ services:
       DATABASE_URL: "postgres://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}?sslmode=disable"
       JWT_SECRET: ${JWT_SECRET}
       PORT: "4235"
+      LLM_AGENT_URL: "http://llm-agent:8001"
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - my-money-net
+
+  llm-agent:
+    build:
+      context: ./services/llm-agent
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${LLM_AGENT_PORT:-8001}:8001"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      LLM_AGENT_PORT: "8001"
     networks:
       - my-money-net
 

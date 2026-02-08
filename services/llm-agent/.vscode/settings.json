@@ -1,0 +1,6 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/services/llm-agent/.venv/bin/python",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/services/llm-agent"
+  ]
+}

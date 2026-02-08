@@ -22,6 +22,7 @@ Esse projeto parte de uma premissa simples: a maioria das pessoas só precisa re
 - [Endpoints da API](#-endpoints-da-api)
 - [Rodando o Projeto](#-rodando-o-projeto)
 - [Variáveis de Ambiente](#-variáveis-de-ambiente)
+- [LLM Agent (Microserviço Python)](#-llm-agent-microserviço-python)
 
 ---
 
@@ -37,6 +38,7 @@ Esse projeto parte de uma premissa simples: a maioria das pessoas só precisa re
 | **Faturas** | Fechamento mensal de fatura do cartão, pagamento via conta bancária |
 | **Transações de Cartão** | Compras no cartão com parcelamento e vínculo automático à fatura |
 | **Receitas/Despesas Planejadas** | Agendamento de receitas e despesas recorrentes (mensal, anual, avulsa) com geração de transações no vencimento |
+| **Importação de CSV com IA** | Upload de extrato bancário/fatura em CSV, categorização automática via LLM (LangChain + OpenAI), preview editável e confirmação com detecção de duplicatas |
 
 ---
 
@@ -44,7 +46,8 @@ Esse projeto parte de uma premissa simples: a maioria das pessoas só precisa re
 
 | Categoria | Tecnologia |
 |-----------|------------|
-| **Linguagem** | Go 1.25 |
+| **Linguagem (API)** | Go 1.25 |
+| **Linguagem (LLM Agent)** | Python 3.14 |
 | **HTTP Router** | [chi v5](https://github.com/go-chi/chi) |
 | **Banco de Dados** | PostgreSQL 17 |
 | **Driver DB** | [pgx v5](https://github.com/jackc/pgx) + `pgxpool` |
@@ -55,26 +58,33 @@ Esse projeto parte de uma premissa simples: a maioria das pessoas só precisa re
 | **Decimais** | [shopspring/decimal](https://github.com/shopspring/decimal) |
 | **UUIDs** | [google/uuid](https://github.com/google/uuid) |
 | **CORS** | [go-chi/cors](https://github.com/go-chi/cors) |
+| **LLM / IA** | [LangChain](https://python.langchain.com/) + [OpenAI API](https://platform.openai.com/) (gpt-5-mini) |
+| **Framework LLM Agent** | [FastAPI](https://fastapi.tiangolo.com/) + [Pydantic](https://docs.pydantic.dev/) |
+| **Gerenciador Python** | [uv](https://docs.astral.sh/uv/) |
 | **Hot Reload** | [air](https://github.com/air-verse/air) |
-| **Container** | Docker + Docker Compose |
+| **Container** | Docker + Docker Compose (multi-service) |
 
 ---
 
 ## 🏗 Arquitetura
 
-O projeto segue **Clean Architecture** com separação estrita de camadas e **Dependency Inversion Principle** — as dependências sempre apontam para o domínio.
+O projeto segue **Clean Architecture** com separação estrita de camadas e **Dependency Inversion Principle** — as dependências sempre apontam para o domínio. A feature de importação de CSV adiciona um **microserviço Python (LLM Agent)** que se comunica com a API Go via HTTP interno.
 
 ```
 cmd/api (composição / DI manual)
     ↓
 handler → service → domain
-    ↓        ↓
+    ↓        ↓         ↑
 middleware  repository → domain
-               ↓
-           postgres (sqlc)
+    ↓          ↓
+    ↓      postgres (sqlc)
+    ↓
+    └─ service/llm_client ──HTTP──→ [LLM Agent (Python/FastAPI)]
+                                         ↓
+                                    LangChain → OpenAI API
 ```
 
-### Fluxo de uma Request
+### Fluxo de uma Request (padrão)
 
 ```
 HTTP Request
@@ -85,6 +95,29 @@ HTTP Request
                     → PostgreSQL (via sqlc)
 ```
 
+### Fluxo de Importação CSV (com LLM)
+
+```
+CSV Upload (multipart/form-data)
+    → ImportHandler (valida ownership, extrai arquivo)
+        → ImportService
+            → CSVParser (parseia CSV: separadores, datas, valores)
+            → LLMClient ──HTTP POST──→ LLM Agent (Python/FastAPI)
+            │                              ↓
+            │                         LangChain → OpenAI (gpt-5-mini)
+            │                              ↓
+            │                         JSON categorizado ← retorno
+            ← Preview para o usuário (editável)
+
+Confirmação
+    → ImportHandler (valida ownership)
+        → ImportService
+            → Detecção de duplicatas (descrição + valor + data ±1 dia)
+            → Criação de categorias sugeridas
+            → Persistência de transações
+                → Repository → PostgreSQL
+```
+
 ### Princípios Aplicados
 
 - **Domain não conhece infraestrutura** — apenas stdlib, `uuid` e `decimal`
@@ -92,6 +125,7 @@ HTTP Request
 - **Repository implementa interfaces** — traduz tipos do banco para domínio
 - **Handler é fino** — só faz decode, verificação de ownership e chama o service
 - **DI manual no `main.go`** — sem frameworks (wire, fx, dig), composição explícita
+- **Microserviço isolado** — LLM Agent é um serviço Python independente, comunicação via HTTP
 
 ---
 
@@ -106,21 +140,35 @@ my-money/
 │   ├── auth/                        # JWT (generate, verify)
 │   ├── config/                      # Carregamento de variáveis de ambiente
 │   ├── domain/                      # Entidades, validações, tipos, erros sentinela
+│   │   └── csv_import.go            # Tipos de domínio para importação CSV
 │   ├── handler/                     # Handlers HTTP, router, helpers de response
-│   │   └── middleware/              # Middleware de autenticação
+│   │   ├── middleware/              # Middleware de autenticação
+│   │   └── import_handler.go        # Handlers de upload CSV e confirmação
 │   ├── migrations/                  # SQL migrations (tern)
 │   ├── repository/                  # Implementações concretas de repositório
 │   │   ├── postgres/                # Código gerado pelo sqlc (NÃO editar)
 │   │   └── queries/                 # Queries SQL fonte para o sqlc
 │   └── service/                     # Lógica de negócio, interfaces de repositório
-├── docker-compose.yml
-├── Dockerfile                       # Multi-stage build
+│       ├── csv_parser.go            # Parser de CSV (separadores, datas, valores)
+│       ├── llm_client.go            # Cliente HTTP para o LLM Agent (retry, timeout)
+│       └── import_service.go        # Orquestração de importação (preview, confirm)
+├── services/                        # Microserviços auxiliares
+│   └── llm-agent/                   # Agente de categorização por IA (Python)
+│       ├── src/
+│       │   ├── agent.py             # Lógica de categorização (LangChain + OpenAI)
+│       │   ├── models.py            # Modelos Pydantic (request/response)
+│       │   ├── config.py            # Configuração (env vars)
+│       │   └── main.py              # FastAPI app (endpoints /categorize, /health)
+│       ├── Dockerfile               # Imagem Python para o agente
+│       └── pyproject.toml           # Dependências Python (uv)
+├── docker-compose.yml               # Multi-service: API Go + LLM Agent + PostgreSQL
+├── Dockerfile                       # Multi-stage build (API Go)
 ├── Makefile
 ├── sqlc.yml
 └── go.mod
 ```
 
-> Cada camada vive no seu diretório. Cada entidade tem seu arquivo. Cada arquivo tem seu teste. Sem surpresas.
+> Cada camada vive no seu diretório. Cada entidade tem seu arquivo. Cada arquivo tem seu teste. Microserviços auxiliares ficam em `services/`.
 
 ---
 
@@ -343,17 +391,61 @@ r.Context() → handler → service(ctx) → repository(ctx) → sqlc queries(ct
 
 Toda função que faz I/O recebe `ctx context.Context` como primeiro parâmetro — sem exceção.
 
+### Importação de CSV com Categorização por IA
+
+A feature de importação permite que o usuário faça upload de um extrato bancário ou fatura de cartão em CSV. O fluxo é dividido em duas etapas: **preview** (com categorização automática) e **confirm** (persistência).
+
+O parsing de CSV é resiliente a diferentes formatos de bancos brasileiros:
+
+```go
+// internal/service/csv_parser.go
+
+// Detecta separador automaticamente (vírgula, ponto-e-vírgula, tab)
+// Parseia datas em múltiplos formatos (dd/mm/yyyy, yyyy-mm-dd, dd-mm-yyyy)
+// Normaliza valores monetários ("1.234,56" → 1234.56, "-R$ 500,00" → -500.00)
+// Suporta encodings diferentes (UTF-8, Latin-1)
+```
+
+A categorização é feita por um **microserviço Python** que usa LangChain + OpenAI:
+
+```python
+# services/llm-agent/src/agent.py
+
+# Recebe transações brutas + categorias existentes do usuário
+# Mapeia cada transação para uma categoria existente ou sugere nova
+# Retorna JSON estruturado com confidence score (0.0 a 1.0)
+# Limpa e normaliza descrições automaticamente
+```
+
+A comunicação entre Go e Python é feita via HTTP interno com **retry e backoff exponencial**:
+
+```go
+// internal/service/llm_client.go
+
+type LLMClient struct {
+    baseURL    string
+    httpClient *http.Client  // timeout configurado (30s)
+    maxRetries int           // 3 tentativas com backoff
+}
+```
+
+Na confirmação, o `ImportService` realiza:
+1. **Detecção de duplicatas** — por `descrição + valor + data` com janela de ±1 dia
+2. **Criação de categorias sugeridas** — categorias novas propostas pelo LLM são criadas automaticamente
+3. **Persistência em lote** — todas as transações são salvas com a categoria atribuída
+
 ### Docker Multi-Stage Build
 
-O `Dockerfile` usa multi-stage build para gerar uma imagem mínima (~15MB):
+O projeto usa **dois Dockerfiles** — um para a API Go e outro para o LLM Agent Python:
+
+**API Go** — multi-stage build com imagem mínima (~15MB):
 
 ```dockerfile
-# Stage 1: Build
+# Dockerfile (raiz)
 FROM golang:1.25-alpine AS builder
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-s -w" -o /app/api ./cmd/api
 
-# Stage 2: Runtime
 FROM alpine:3.21
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=builder /app/api .
@@ -362,7 +454,21 @@ EXPOSE 4235
 ENTRYPOINT ["./api"]
 ```
 
-Flags `-s -w` no `ldflags` removem a tabela de símbolos e info de debug. O runtime roda como **usuário não-root**.
+**LLM Agent Python** — imagem com `uv` para instalar dependências:
+
+```dockerfile
+# services/llm-agent/Dockerfile
+FROM python:3.14-slim
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+WORKDIR /app
+COPY pyproject.toml .
+RUN uv pip install --system -e .
+COPY src/ src/
+EXPOSE 8001
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8001"]
+```
+
+Flags `-s -w` no `ldflags` removem a tabela de símbolos e info de debug. Ambos os containers rodam como **usuário não-root**. O `docker-compose.yml` orquestra API, LLM Agent e PostgreSQL na mesma rede.
 
 ---
 
@@ -576,6 +682,33 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 ```
 
+### Upload de Arquivos com Limite de Tamanho
+
+O upload de CSV é protegido com `http.MaxBytesReader` **antes** de parsear o multipart, impedindo ataques de exaustão de memória:
+
+```go
+// internal/handler/import_handler.go
+
+const maxUploadSize = 5 * 1024 * 1024 // 5MB
+
+r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+if err := r.ParseMultipartForm(maxUploadSize); err != nil {
+    Error(w, http.StatusBadRequest, "file too large (max 5MB)")
+    return
+}
+```
+
+### Comunicação Segura com Microserviço
+
+O `LLMClient` implementa práticas de resiliência para chamadas ao serviço Python:
+
+- **Timeout de 30s** — evita bloqueio indefinido se o LLM Agent cair
+- **Retry com backoff exponencial** — 3 tentativas com delay crescente (1s, 2s, 4s)
+- **Respeita `ctx.Done()`** — cancela retries se o contexto da request expirar
+- **Validação de resposta** — verifica formato JSON antes de usar
+- **Erros sentinela** — `ErrLLMUnavailable` e `ErrLLMTimeout` para tratamento diferenciado
+- **URL via env var** — `LLM_AGENT_URL` nunca hardcoded, `OPENAI_API_KEY` apenas no Python
+
 ### Resumo de Proteções
 
 | Ameaça | Prevenção |
@@ -591,6 +724,9 @@ USER appuser
 | Secrets no código | `.env` no `.gitignore`, validação no `config.Load()` |
 | CORS aberto | Origens configuráveis, nunca `*` em produção |
 | Container como root | `USER appuser` no Dockerfile |
+| Upload malicioso / DoS | `http.MaxBytesReader` limita upload a 5MB |
+| LLM Agent indisponível | Retry com backoff + timeout + erros sentinela |
+| API key exposta | `OPENAI_API_KEY` apenas no container Python, via env var |
 
 ---
 
@@ -989,12 +1125,16 @@ func TestBankAccount_AllowsOverdraft(t *testing.T) {
 | `GET` | `/api/planned-expenses/{id}` | Buscar despesa planejada por ID |
 | `PUT` | `/api/planned-expenses/{id}` | Atualizar despesa planejada |
 | `DELETE` | `/api/planned-expenses/{id}` | Remover despesa planejada |
+|| | | |
+|| `POST` | `/api/import/preview` | Upload de CSV + categorização automática via LLM (retorna preview editável) |
+|| `POST` | `/api/import/confirm` | Confirma importação: cria categorias, detecta duplicatas e persiste transações |
 
 ### Health Check
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| `GET` | `/health` | Status da API |
+| `GET` | `/health` | Status da API Go |
+| `GET` | `http://llm-agent:8001/health` | Status do LLM Agent (interno, não exposto) |
 
 ---
 
@@ -1003,8 +1143,10 @@ func TestBankAccount_AllowsOverdraft(t *testing.T) {
 ### Pré-requisitos
 
 - Go 1.25+
+- Python 3.14+ e [uv](https://docs.astral.sh/uv/) (para o LLM Agent)
 - Docker e Docker Compose
 - Make
+- Chave da API da OpenAI (`OPENAI_API_KEY`)
 
 ### Setup rápido
 
@@ -1018,6 +1160,7 @@ make setup
 
 # 3. Configure o .env com seus valores
 # (edite o arquivo .env gerado a partir do .env.example)
+# Inclua: OPENAI_API_KEY=sk-...
 
 # 4. Suba o banco de dados
 make db-up
@@ -1034,16 +1177,37 @@ make dev   # com hot-reload (air)
 make run   # sem hot-reload
 ```
 
+### Setup do LLM Agent (desenvolvimento local)
+
+```bash
+# 1. Instale as dependências Python
+cd services/llm-agent
+uv venv
+source .venv/bin/activate
+uv pip install -e .
+
+# 2. Configure a variável de ambiente
+export OPENAI_API_KEY=sk-...
+
+# 3. Rode o agente
+uvicorn src.main:app --host 0.0.0.0 --port 8001
+
+# 4. Teste o health check
+curl http://localhost:8001/health
+```
+
 ### Com Docker (produção)
 
 ```bash
-# Build e start completo
+# Build e start completo (API Go + LLM Agent + PostgreSQL)
 make docker-build
 make docker-run
 
 # Parar tudo
 make docker-stop
 ```
+
+O `docker-compose.yml` orquestra os três serviços (`api`, `llm-agent`, `db`) na mesma rede interna. A API Go se comunica com o LLM Agent via `http://llm-agent:8001`.
 
 ### Comandos disponíveis
 
@@ -1072,18 +1236,116 @@ make help  # Lista todos os comandos disponíveis
 
 ## 🔐 Variáveis de Ambiente
 
+#### API Go
+
 | Variável | Obrigatória | Descrição |
 |----------|:-----------:|-----------|
 | `DATABASE_URL` | ✅ | URL de conexão do PostgreSQL |
 | `JWT_SECRET` | ✅ | Secret para assinatura dos tokens JWT |
 | `PORT` | ❌ | Porta da API (default: `4235`) |
 | `CORS_ALLOWED_ORIGINS` | ❌ | Origens permitidas, separadas por vírgula (default: `http://localhost:3000`) |
-| `DB_USER` | ✅ | Usuário do PostgreSQL (usado pelo docker-compose) |
-| `DB_PASSWORD` | ✅ | Senha do PostgreSQL (usado pelo docker-compose) |
-| `DB_NAME` | ✅ | Nome do banco (usado pelo docker-compose) |
-| `DB_PORT` | ✅ | Porta do PostgreSQL (usado pelo docker-compose) |
+| `LLM_AGENT_URL` | ❌ | URL do LLM Agent (default: `http://localhost:8001`) |
 
-> ⚠️ O arquivo `.env` **nunca** é commitado. Use o `.env.example` como referência.
+#### LLM Agent (Python)
+
+| Variável | Obrigatória | Descrição |
+|----------|:-----------:|-----------|
+| `OPENAI_API_KEY` | ✅ | Chave da API da OpenAI para categorização via LLM |
+| `LLM_AGENT_PORT` | ❌ | Porta do agente (default: `8001`) |
+| `LLM_MODEL` | ❌ | Modelo da OpenAI (default: `gpt-5-mini`) |
+
+#### Docker Compose
+
+| Variável | Obrigatória | Descrição |
+|----------|:-----------:|-----------|
+| `DB_USER` | ✅ | Usuário do PostgreSQL |
+| `DB_PASSWORD` | ✅ | Senha do PostgreSQL |
+| `DB_NAME` | ✅ | Nome do banco |
+| `DB_PORT` | ✅ | Porta do PostgreSQL |
+
+> ⚠️ O arquivo `.env` **nunca** é commitado. Use o `.env.example` como referência. A `OPENAI_API_KEY` é usada **apenas** pelo container Python — nunca pelo Go.
+
+---
+
+## 🤖 LLM Agent (Microserviço Python)
+
+O LLM Agent é um microserviço Python independente que realiza a categorização inteligente de transações usando **LangChain** e a **API da OpenAI**.
+
+### Como funciona
+
+1. A API Go envia transações brutas (extraídas do CSV) + categorias existentes do usuário
+2. O agente monta um prompt estruturado com regras de categorização financeira brasileira
+3. O LLM (`gpt-5-mini`) analisa cada transação e retorna:
+   - **Categoria atribuída** — uma existente do usuário, ou uma nova sugerida
+   - **Descrição limpa** — normalizada, sem caracteres desnecessários
+   - **Tipo da transação** — `income` ou `expense`, inferido do contexto
+   - **Confiança** — score de 0.0 a 1.0 para cada categorização
+4. A resposta é validada pelo Pydantic e retornada como JSON estruturado
+
+### Stack do Agente
+
+| Componente | Tecnologia | Papel |
+|------------|------------|-------|
+| **Framework LLM** | LangChain | Orquestração de prompts e chamadas ao modelo |
+| **Modelo** | OpenAI gpt-5-mini | Categorização com custo baixo e boa precisão |
+| **API HTTP** | FastAPI | Endpoints REST para comunicação com a API Go |
+| **Validação** | Pydantic | Schemas tipados para request/response |
+| **Configuração** | python-dotenv | Carregamento de env vars (OPENAI_API_KEY) |
+
+### Endpoints do Agente
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `POST` | `/categorize` | Recebe transações brutas e retorna categorizadas |
+| `GET` | `/health` | Health check do serviço |
+
+### Exemplo de Request/Response
+
+```bash
+curl -X POST http://localhost:8001/categorize \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transactions": [
+      {"description": "PIX RECEBIDO - EMPRESA XYZ", "amount": 3500.00, "transaction_date": "2026-02-01", "transaction_type": "income"},
+      {"description": "SUPERMERCADO CARREFOUR", "amount": 245.67, "transaction_date": "2026-02-01", "transaction_type": "expense"}
+    ],
+    "existing_categories": [
+      {"id": "uuid-1", "name": "Salário", "type": "income"},
+      {"id": "uuid-2", "name": "Alimentação", "type": "expense"}
+    ],
+    "import_type": "bank_account"
+  }'
+```
+
+```json
+{
+  "transactions": [
+    {
+      "original_description": "PIX RECEBIDO - EMPRESA XYZ",
+      "cleaned_description": "Pix Recebido - Empresa Xyz",
+      "amount": 3500.00,
+      "transaction_date": "2026-02-01",
+      "transaction_type": "income",
+      "category_id": "uuid-1",
+      "suggested_category_name": null,
+      "suggested_category_type": null,
+      "confidence": 0.95
+    },
+    {
+      "original_description": "SUPERMERCADO CARREFOUR",
+      "cleaned_description": "Supermercado Carrefour",
+      "amount": 245.67,
+      "transaction_date": "2026-02-01",
+      "transaction_type": "expense",
+      "category_id": "uuid-2",
+      "suggested_category_name": null,
+      "suggested_category_type": null,
+      "confidence": 0.92
+    }
+  ],
+  "suggested_categories": []
+}
+```
 
 ---
 
@@ -1094,5 +1356,5 @@ Este projeto é de uso pessoal e para fins de portfólio.
 ---
 
 <p align="center">
-  Feito com Go, café e a vontade de não precisar de planilha pra saber se sobrou dinheiro no mês. ☕
+  Feito com Go, Python, LangChain, café e a vontade de não precisar de planilha pra saber se sobrou dinheiro no mês. ☕🤖
 </p>

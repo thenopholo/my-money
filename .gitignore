@@ -9,3 +9,10 @@ bin/
 tmp/
 coverage.out
 coverage.html
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+services/llm-agent/.venv/
+services/llm-agent/uv.lock
