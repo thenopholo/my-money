@@ -169,6 +169,7 @@ func (h *CreditCardTransactionHandler) Update(w http.ResponseWriter, r *http.Req
 	}
 
 	var req struct {
+		CategoryID      string `json:"category_id"`
 		Amount          string `json:"amount"`
 		Description     string `json:"description"`
 		Installments    int    `json:"installments"`
@@ -179,6 +180,11 @@ func (h *CreditCardTransactionHandler) Update(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	categoryID, err := parseUUID(req.CategoryID)
+	if err != nil {
+		Error(w, http.StatusBadRequest, "invalid category_id")
+		return
+	}
 	amount, err := parseDecimal(req.Amount)
 	if err != nil {
 		Error(w, http.StatusBadRequest, "invalid amount")
@@ -190,7 +196,7 @@ func (h *CreditCardTransactionHandler) Update(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	tx, err := h.service.Update(r.Context(), id, amount, req.Description, req.Installments, transactionDate)
+	tx, err := h.service.Update(r.Context(), id, categoryID, amount, req.Description, req.Installments, transactionDate)
 	if err != nil {
 		Error(w, http.StatusBadRequest, err.Error())
 		return

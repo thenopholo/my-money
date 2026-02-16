@@ -22,9 +22,12 @@ SELECT * FROM transactions WHERE "planned_income_id" = $1;
 SELECT * FROM transactions WHERE "planned_expense_id" = $1;
 
 -- name: UpdateTransaction :one
-UPDATE transactions SET "amount" = $2, "transaction_type" = $3, "description" = $4, "transaction_date" = $5
+UPDATE transactions SET "category_id" = $2, "amount" = $3, "transaction_type" = $4, "description" = $5, "transaction_date" = $6
 WHERE "id" = $1
 RETURNING *;
 
 -- name: DeleteTransaction :exec
 DELETE FROM transactions WHERE "id" = $1;
+
+-- name: DeleteTransactionsByAccountID :exec
+DELETE FROM transactions WHERE "account_id" = $1;

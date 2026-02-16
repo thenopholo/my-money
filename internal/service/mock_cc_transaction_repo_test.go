@@ -8,15 +8,16 @@ import (
 )
 
 type mockCreditCardTransactionRepository struct {
-	createFn         func(ctx context.Context, t *domain.CreditCardTransaction) error
-	getByIDFn        func(ctx context.Context, id uuid.UUID) (*domain.CreditCardTransaction, error)
-	getByCardFn      func(ctx context.Context, cardID uuid.UUID) ([]*domain.CreditCardTransaction, error)
-	getByCategoryFn  func(ctx context.Context, categoryID uuid.UUID) ([]*domain.CreditCardTransaction, error)
-	getByInvoiceFn   func(ctx context.Context, invoiceID uuid.UUID) ([]*domain.CreditCardTransaction, error)
-	getPendingFn     func(ctx context.Context, cardID uuid.UUID) ([]*domain.CreditCardTransaction, error)
-	assignToInvFn    func(ctx context.Context, transactionID, invoiceID uuid.UUID) error
-	updateFn         func(ctx context.Context, t *domain.CreditCardTransaction) error
-	deleteFn         func(ctx context.Context, id uuid.UUID) error
+	createFn           func(ctx context.Context, t *domain.CreditCardTransaction) error
+	getByIDFn          func(ctx context.Context, id uuid.UUID) (*domain.CreditCardTransaction, error)
+	getByCardFn        func(ctx context.Context, cardID uuid.UUID) ([]*domain.CreditCardTransaction, error)
+	getByCategoryFn    func(ctx context.Context, categoryID uuid.UUID) ([]*domain.CreditCardTransaction, error)
+	getByInvoiceFn     func(ctx context.Context, invoiceID uuid.UUID) ([]*domain.CreditCardTransaction, error)
+	getPendingFn       func(ctx context.Context, cardID uuid.UUID) ([]*domain.CreditCardTransaction, error)
+	assignToInvFn      func(ctx context.Context, transactionID, invoiceID uuid.UUID) error
+	updateFn           func(ctx context.Context, t *domain.CreditCardTransaction) error
+	deleteFn           func(ctx context.Context, id uuid.UUID) error
+	deleteAllByCardFn  func(ctx context.Context, cardID uuid.UUID) error
 }
 
 func (m *mockCreditCardTransactionRepository) Create(ctx context.Context, t *domain.CreditCardTransaction) error {
@@ -53,4 +54,8 @@ func (m *mockCreditCardTransactionRepository) Update(ctx context.Context, t *dom
 
 func (m *mockCreditCardTransactionRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return m.deleteFn(ctx, id)
+}
+
+func (m *mockCreditCardTransactionRepository) DeleteAllByCardID(ctx context.Context, cardID uuid.UUID) error {
+	return m.deleteAllByCardFn(ctx, cardID)
 }

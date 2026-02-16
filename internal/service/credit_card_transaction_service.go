@@ -91,6 +91,7 @@ func (s *CreditCardTransactionService) Create(
 func (s *CreditCardTransactionService) Update(
 	ctx context.Context,
 	id uuid.UUID,
+	categoryID uuid.UUID,
 	amount decimal.Decimal,
 	description string,
 	installments int,
@@ -99,6 +100,14 @@ func (s *CreditCardTransactionService) Update(
 	tx, err := s.ccTxRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+
+	category, err := s.categoryRepo.GetByID(ctx, categoryID)
+	if err != nil {
+		return nil, err
+	}
+	if category.CategoryType != domain.CategoryTypeExpense {
+		return nil, domain.ErrCategoryTypeMismatch
 	}
 
 	if amount.LessThanOrEqual(decimal.Zero) {
@@ -111,6 +120,7 @@ func (s *CreditCardTransactionService) Update(
 		return nil, domain.ErrInvalidInstallments
 	}
 
+	tx.CategoryID = categoryID
 	tx.Amount = amount
 	tx.Description = description
 	tx.Installments = installments

@@ -8,15 +8,16 @@ import (
 )
 
 type mockTransactionRepository struct {
-	createFn             func(ctx context.Context, t *domain.Transaction) error
-	getByIDFn            func(ctx context.Context, id uuid.UUID) (*domain.Transaction, error)
-	getByAccountFn       func(ctx context.Context, accountID uuid.UUID) ([]*domain.Transaction, error)
-	getByCategoryFn      func(ctx context.Context, categoryID uuid.UUID) ([]*domain.Transaction, error)
-	getByInvoiceFn       func(ctx context.Context, invoiceID uuid.UUID) ([]*domain.Transaction, error)
-	getByPlannedIncomeFn func(ctx context.Context, id uuid.UUID) ([]*domain.Transaction, error)
+	createFn              func(ctx context.Context, t *domain.Transaction) error
+	getByIDFn             func(ctx context.Context, id uuid.UUID) (*domain.Transaction, error)
+	getByAccountFn        func(ctx context.Context, accountID uuid.UUID) ([]*domain.Transaction, error)
+	getByCategoryFn       func(ctx context.Context, categoryID uuid.UUID) ([]*domain.Transaction, error)
+	getByInvoiceFn        func(ctx context.Context, invoiceID uuid.UUID) ([]*domain.Transaction, error)
+	getByPlannedIncomeFn  func(ctx context.Context, id uuid.UUID) ([]*domain.Transaction, error)
 	getByPlannedExpenseFn func(ctx context.Context, id uuid.UUID) ([]*domain.Transaction, error)
-	updateFn             func(ctx context.Context, t *domain.Transaction) error
-	deleteFn             func(ctx context.Context, id uuid.UUID) error
+	updateFn              func(ctx context.Context, t *domain.Transaction) error
+	deleteFn              func(ctx context.Context, id uuid.UUID) error
+	deleteAllByAccountFn  func(ctx context.Context, accountID uuid.UUID) error
 }
 
 func (m *mockTransactionRepository) Create(ctx context.Context, t *domain.Transaction) error {
@@ -53,4 +54,8 @@ func (m *mockTransactionRepository) Update(ctx context.Context, t *domain.Transa
 
 func (m *mockTransactionRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return m.deleteFn(ctx, id)
+}
+
+func (m *mockTransactionRepository) DeleteAllByAccountID(ctx context.Context, accountID uuid.UUID) error {
+	return m.deleteAllByAccountFn(ctx, accountID)
 }

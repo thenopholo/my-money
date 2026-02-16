@@ -113,6 +113,7 @@ func (r *transactionRepository) GetByPlannedExpenseID(ctx context.Context, plann
 func (r *transactionRepository) Update(ctx context.Context, t *domain.Transaction) error {
 	_, err := r.queries.UpdateTransaction(ctx, postgres.UpdateTransactionParams{
 		ID:              t.ID,
+		CategoryID:      t.CategoryID,
 		Amount:          decimalToPgNumeric(t.Amount),
 		TransactionType: string(t.TransactionType),
 		Description:     t.Description,
@@ -139,6 +140,10 @@ func (r *transactionRepository) Delete(ctx context.Context, id uuid.UUID) error 
 	}
 
 	return r.queries.DeleteTransaction(ctx, id)
+}
+
+func (r *transactionRepository) DeleteAllByAccountID(ctx context.Context, accountID uuid.UUID) error {
+	return r.queries.DeleteTransactionsByAccountID(ctx, accountID)
 }
 
 func mapTransactions(dbTxs []postgres.Transaction) []*domain.Transaction {

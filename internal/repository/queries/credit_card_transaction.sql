@@ -24,8 +24,8 @@ WHERE "card_id" = $1 AND "invoice_id" IS NULL;
 
 -- name: UpdateCreditCardTransaction :one
 UPDATE credit_card_transactions
-SET "amount" = $2, "description" = $3, "installments" = $4,
-    "current_installment" = $5, "installment_value" = $6, "transaction_date" = $7
+SET "category_id" = $2, "amount" = $3, "description" = $4, "installments" = $5,
+    "current_installment" = $6, "installment_value" = $7, "transaction_date" = $8
 WHERE "id" = $1
 RETURNING *;
 
@@ -36,3 +36,6 @@ WHERE "id" = $1;
 
 -- name: DeleteCreditCardTransaction :exec
 DELETE FROM credit_card_transactions WHERE "id" = $1;
+
+-- name: DeleteCreditCardTransactionsByCardID :exec
+DELETE FROM credit_card_transactions WHERE "card_id" = $1;

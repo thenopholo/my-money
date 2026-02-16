@@ -68,6 +68,15 @@ func (q *Queries) DeleteTransaction(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const deleteTransactionsByAccountID = `-- name: DeleteTransactionsByAccountID :exec
+DELETE FROM transactions WHERE "account_id" = $1
+`
+
+func (q *Queries) DeleteTransactionsByAccountID(ctx context.Context, accountID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteTransactionsByAccountID, accountID)
+	return err
+}
+
 const getTransactionByAccountID = `-- name: GetTransactionByAccountID :many
 SELECT id, account_id, category_id, invoice_id, planned_income_id, planned_expense_id, amount, transaction_type, description, transaction_date, created_at FROM transactions WHERE "account_id" = $1
 `
@@ -272,13 +281,14 @@ func (q *Queries) GetTransactionByPlannedIncomeID(ctx context.Context, plannedIn
 }
 
 const updateTransaction = `-- name: UpdateTransaction :one
-UPDATE transactions SET "amount" = $2, "transaction_type" = $3, "description" = $4, "transaction_date" = $5
+UPDATE transactions SET "category_id" = $2, "amount" = $3, "transaction_type" = $4, "description" = $5, "transaction_date" = $6
 WHERE "id" = $1
 RETURNING id, account_id, category_id, invoice_id, planned_income_id, planned_expense_id, amount, transaction_type, description, transaction_date, created_at
 `
 
 type UpdateTransactionParams struct {
 	ID              uuid.UUID      `json:"id"`
+	CategoryID      uuid.UUID      `json:"category_id"`
 	Amount          pgtype.Numeric `json:"amount"`
 	TransactionType string         `json:"transaction_type"`
 	Description     string         `json:"description"`
@@ -288,6 +298,7 @@ type UpdateTransactionParams struct {
 func (q *Queries) UpdateTransaction(ctx context.Context, arg UpdateTransactionParams) (Transaction, error) {
 	row := q.db.QueryRow(ctx, updateTransaction,
 		arg.ID,
+		arg.CategoryID,
 		arg.Amount,
 		arg.TransactionType,
 		arg.Description,

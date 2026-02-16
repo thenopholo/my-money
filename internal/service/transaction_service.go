@@ -294,12 +294,17 @@ func (ts *TransactionService) Delete(ctx context.Context, id uuid.UUID) error {
 func (ts *TransactionService) Update(
 	ctx context.Context,
 	id uuid.UUID,
+	categoryID uuid.UUID,
 	amount decimal.Decimal,
 	description string,
 	transactionDate time.Time,
 ) (*domain.Transaction, error) {
 	tx, err := ts.transactionRepo.GetByID(ctx, id)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := ts.validateCategoryMatchesType(ctx, categoryID, tx.TransactionType); err != nil {
 		return nil, err
 	}
 
@@ -336,6 +341,7 @@ func (ts *TransactionService) Update(
 	if err := applyToAccount(account, tx.TransactionType, amount); err != nil {
 		return nil, err
 	}
+	tx.CategoryID = categoryID
 	tx.Amount = amount
 	tx.Description = description
 	tx.TransactionDate = transactionDate

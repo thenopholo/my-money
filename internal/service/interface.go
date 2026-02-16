@@ -73,6 +73,7 @@ type TransactionRepository interface {
 	GetByPlannedExpenseID(ctx context.Context, plannedExpenseID uuid.UUID) ([]*domain.Transaction, error)
 	Update(ctx context.Context, t *domain.Transaction) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	DeleteAllByAccountID(ctx context.Context, accountID uuid.UUID) error
 }
 
 type CreditCardTransactionRepository interface {
@@ -85,4 +86,5 @@ type CreditCardTransactionRepository interface {
 	AssignToInvoice(ctx context.Context, transactionID, invoiceID uuid.UUID) error
 	Update(ctx context.Context, t *domain.CreditCardTransaction) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	DeleteAllByCardID(ctx context.Context, cardID uuid.UUID) error
 }

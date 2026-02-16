@@ -19,6 +19,7 @@ func NewRouter(
 	creditCardTransactionHandler *CreditCardTransactionHandler,
 	invoiceHandler *InvoiceHandler,
 	importHandler *ImportHandler,
+	resetHandler *ResetHandler,
 	authMiddleware func(http.Handler) http.Handler,
 	corsAllowedOrigins []string,
 ) *chi.Mux {
@@ -115,6 +116,10 @@ func NewRouter(
 				r.Post("/planned-income/{plannedIncomeID}", transactionHandler.CreateFromPlannedIncome)
 				r.Post("/planned-expense/{plannedExpenseID}", transactionHandler.CreateFromPlannedExpense)
 				r.Post("/pay-invoice", transactionHandler.PayInvoice)
+
+				if resetHandler != nil {
+					r.Delete("/reset", resetHandler.ResetAllTransactions)
+				}
 			})
 			r.Get("/accounts/{accountID}/transactions", transactionHandler.ListByAccount)
 		}
